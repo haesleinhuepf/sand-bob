@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 import docker
 from docker.errors import DockerException, ContainerError
-
+import subprocess
 
 @dataclass
 class ExecutionResult:
@@ -49,7 +49,19 @@ class CodeExecutor:
         self.base_image = base_image or f"python:{python_version}-slim"
         self.timeout = timeout
         self.memory_limit = memory_limit
-        self.client = docker.from_env()
+        try:
+            self.client = docker.from_env()
+        except DockerException as e:
+            if "Error while fetching server API version" in str(e):
+                print("Docker daemon is not running. Starting Docker daemon...")
+                subprocess.run(["dockerd"], check=True)
+                self.client = docker.from_env()
+            else:
+                raise
+        except Exception as e:
+            print(f"Error initializing Docker client: {e}")
+            self.client = None
+
         self.containers = []
         
     def execute(
