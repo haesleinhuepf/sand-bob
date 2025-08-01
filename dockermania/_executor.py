@@ -68,8 +68,10 @@ class CodeExecutor:
         self, 
         code: str, 
         dependencies: List[str], 
-        host_path: Optional[str] = None, 
-        container_path: str = "/mounted_data"
+        input_host_path: Optional[str] = None, 
+        input_container_path: str = "/input_data",
+        output_host_path: Optional[str] = None, 
+        output_container_path: str = "/output_data"
     ) -> ExecutionResult:
         """
         Execute Python code in a Docker container.
@@ -77,8 +79,10 @@ class CodeExecutor:
         Args:
             code: Python code to execute
             dependencies: List of Python package dependencies
-            host_path: Optional path to the directory on the host to mount
-            container_path: Path inside the container where the volume will be mounted (only used if host_path is provided)
+            input_host_path: Optional path to the directory on the host to mount as read-only input
+            input_container_path: Path inside the container where the input volume will be mounted
+            output_host_path: Optional path to the directory on the host to mount as read-write output
+            output_container_path: Path inside the container where the output volume will be mounted
             
         Returns:
             ExecutionResult with stdout, stderr, exit_code, and execution_time
@@ -86,14 +90,23 @@ class CodeExecutor:
         start_time = time.time()
         
         try:
-            # Validate host path if provided
-            if host_path is not None:
-                host_path = os.path.abspath(host_path)
-                if not os.path.exists(host_path):
-                    raise ValueError(f"Host path does not exist: {host_path}")
+            # Validate input host path if provided
+            if input_host_path is not None:
+                input_host_path = os.path.abspath(input_host_path)
+                if not os.path.exists(input_host_path):
+                    raise ValueError(f"Input host path does not exist: {input_host_path}")
                 
-                if not os.path.isdir(host_path):
-                    raise ValueError(f"Host path is not a directory: {host_path}")
+                if not os.path.isdir(input_host_path):
+                    raise ValueError(f"Input host path is not a directory: {input_host_path}")
+            
+            # Validate output host path if provided
+            if output_host_path is not None:
+                output_host_path = os.path.abspath(output_host_path)
+                if not os.path.exists(output_host_path):
+                    raise ValueError(f"Output host path does not exist: {output_host_path}")
+                
+                if not os.path.isdir(output_host_path):
+                    raise ValueError(f"Output host path is not a directory: {output_host_path}")
             
             # Create temporary directory for the code
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -118,7 +131,8 @@ class CodeExecutor:
                 
                 # Build and run container
                 container = self._build_and_run_container(
-                    temp_dir, code_file, host_path, container_path
+                    temp_dir, code_file, input_host_path, input_container_path, 
+                    output_host_path, output_container_path
                 )
                 
                 self.containers.append(container.id)
@@ -171,8 +185,10 @@ CMD ["python", "code.py"]
         self, 
         temp_dir: str, 
         code_file: str, 
-        host_path: Optional[str] = None, 
-        container_path: str = "/mounted_data"
+        input_host_path: Optional[str] = None, 
+        input_container_path: str = "/input_data",
+        output_host_path: Optional[str] = None, 
+        output_container_path: str = "/output_data"
     ) -> docker.models.containers.Container:
         """Build and run the Docker container."""
         # Build the image
@@ -191,15 +207,26 @@ CMD ["python", "code.py"]
             'remove': False
         }
         
-        # Add volume mount if host_path is provided
-        if host_path is not None:
-            run_params['volumes'] = {
-                host_path: {
-                    'bind': container_path,
-                    'mode': 'rw'
-                }
+        # Initialize volumes dictionary
+        volumes = {}
+        
+        # Add input volume mount if provided (read-only)
+        if input_host_path is not None:
+            volumes[input_host_path] = {
+                'bind': input_container_path,
+                'mode': 'ro'
             }
-            print(f"bind: container: {container_path} host: {host_path}")
+            
+        # Add output volume mount if provided (read-write)
+        if output_host_path is not None:
+            volumes[output_host_path] = {
+                'bind': output_container_path,
+                'mode': 'rw'
+            }
+            
+        # Add volumes to run parameters if any volumes are specified
+        if volumes:
+            run_params['volumes'] = volumes
         
         # Run the container
         container = self.client.containers.run(**run_params)
