@@ -11,5 +11,5 @@ __all__ = ["ExecutionResult", "execute", "config"]
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
                           "scikit-learn", "scikit-image", "pyclesperanto", 
                           "pyclesperanto_prototype", "cellpose", "tqdm",
-                          "statsmodels", "bioio", "apoc"]
+                          "statsmodels", "bioio", "apoc", "stackview"]
 
