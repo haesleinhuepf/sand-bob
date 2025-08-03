@@ -95,21 +95,25 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
     if len(dependencies) != len(original_dependencies):
         print(f"New dependency list: {dependencies}")
 
+    #print("Sand box output:", result.stdout)
+
     return result, code, dependencies, n_a + 1
 
 
-def generate_run_check(prompt, additional_code=None, expected_output=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_output=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
     """
     Generate a code snippet that runs the given prompt and checks if the output is as expected.
     """
     from ._utilities import extract_code, simplify
     from ._config import config
     
-    code = extract_code(config.prompt_function_generate_code(prompt))
-    if additional_code:
-        code += "\n" + additional_code
-
-    from sand_bob import execute
+    if prefix_code:
+        code = prefix_code + "\n"
+    else:
+        code = ""
+    code = code + extract_code(config.prompt_function_generate_code(prompt))
+    if suffix_code:
+        code += "\n" + suffix_code
 
     result = run_auto_fix(code, 
                           dependencies=dependencies, 
