@@ -1,4 +1,4 @@
-# DockerMania
+# Sand-Bob
 
 A Python library for executing code in Docker containers with automatic dependency management.
 
@@ -14,13 +14,13 @@ A Python library for executing code in Docker containers with automatic dependen
 ## Installation
 
 ```bash
-pip install dockermania
+pip install sand-bob
 ```
 
 ## Quick Start
 
 ```python
-from dockermania import execute
+from sand_bob import execute
 
 # Execute code with dependencies
 code = """
@@ -41,7 +41,7 @@ print(f"Exit code: {result.exit_code}")
 ### Custom Python Version
 
 ```python
-from dockermania import CodeExecutor
+from sand_bob import CodeExecutor
 
 code = """
 import sys
@@ -55,7 +55,7 @@ print(result.stdout)
 ### Volume Mounting for File Processing
 
 ```python
-from dockermania import execute
+from sand_bob import execute
 import tempfile
 import os
 
@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory() as host_dir:
     # Create sample files
     sample_file = os.path.join(host_dir, "data.txt")
     with open(sample_file, 'w') as f:
-        f.write("Hello, DockerMania!\nThis is a test file.")
+        f.write("Hello, Sand-Bob!\nThis is a test file.")
     
     # Code to process files in the mounted directory
     code = """
@@ -93,7 +93,7 @@ for file in os.listdir(mounted_dir):
 ### Error Handling
 
 ```python
-from dockermania import execute
+from sand_bob import execute
 
 code = """
 import nonexistent_module

@@ -1,5 +1,5 @@
 """
-DockerMania - A Python library for executing code in Docker containers.
+Sand-Bob - A Python library for executing code in Docker containers.
 """
 from ._executor import ExecutionResult, CodeExecutor
 from typing import List, Optional

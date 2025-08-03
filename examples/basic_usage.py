@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Basic usage example for DockerMania.
+Basic usage example for Sand-Bob.
 """
 
-from dockermania import execute
+from sand_bob import execute
 
 
 def main():
-    """Demonstrate basic usage of DockerMania."""
-    print("🚀 DockerMania - Basic Usage Example")
+    """Demonstrate basic usage of Sand-Bob."""
+    print("🚀 Sand-Bob - Basic Usage Example")
     print("=" * 50)
     
     # Example 1: Simple code execution

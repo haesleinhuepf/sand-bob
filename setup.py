@@ -4,14 +4,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="dockermania",
+    name="sand-bob",
     version="0.1.0",
     author="Robert Haase",
     author_email="robert.haase@uni-leipzig.de",
     description="A Python library for executing code in Docker containers",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/haesleinhuepf/dockermania",
+    url="https://github.com/haesleinhuepf/sand-bob",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",

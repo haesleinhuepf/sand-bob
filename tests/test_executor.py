@@ -3,7 +3,7 @@ Tests for the CodeExecutor class.
 """
 
 import pytest
-from dockermania import execute
+from sand_bob import execute
 
 
 class TestCodeExecutor:

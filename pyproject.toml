@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dockermania"
+name = "sand-bob"
 version = "0.1.0"
 description = "A Python library for executing code in Docker containers"
 readme = "README.md"
@@ -36,9 +36,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/dockermania"
-Repository = "https://github.com/yourusername/dockermania"
-Issues = "https://github.com/yourusername/dockermania/issues"
+Homepage = "https://github.com/yourusername/sand-bob"
+Repository = "https://github.com/yourusername/sand-bob"
+Issues = "https://github.com/yourusername/sand-bob/issues"
 
 [tool.black]
 line-length = 88
@@ -66,13 +66,13 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=dockermania",
+    "--cov=sand_bob",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
 
 [tool.coverage.run]
-source = ["dockermania"]
+source = ["sand_bob"]
 omit = [
     "*/tests/*",
     "*/test_*",

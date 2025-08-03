@@ -1,5 +1,5 @@
 """
-Core execution functionality for DockerMania.
+Core execution functionality for Sand-Bob.
 """
 
 import time
@@ -194,7 +194,7 @@ CMD ["python", "code.py"]
         # Build the image
         image, _ = self.client.images.build(
             path=temp_dir,
-            tag=f"dockermania-{int(time.time())}",
+            tag=f"sand-bob-{int(time.time())}",
             rm=True
         )
         
