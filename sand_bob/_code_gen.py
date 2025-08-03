@@ -1,4 +1,37 @@
 
+def delimiter():
+    return "# --- DOT NOT EDIT ABOVE THIS LINE ---"
+
+def display_prefix_code(output_path):
+    return """
+__display_counter = 0
+def display(obj):
+    import matplotlib.figure
+    global __display_counter
+    if isinstance(obj, matplotlib.figure.Figure):
+        obj.savefig(f"{output_path}/display_{__display_counter}.svg") # for jupyter
+        obj.savefig(f"{output_path}/display_{__display_counter}.png") # for vlms
+        print(f"![display_{__display_counter}.png]({output_path}/display_{__display_counter}.png)")
+        __display_counter += 1
+    else:
+        print(str(obj))
+
+""".replace("{output_path}", output_path) + delimiter() + "\n"
+
+
+def system_prompt():
+    return """
+You are an expert in python programming. You are a list of framework constraints which you MUST follow.
+Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
+
+# Framework constraints
+* Use the following libraries when necessary: {", ".join(WHITELIST_DEPENDENCIES)}
+* When intermediate or final results are computed, use the `display` function to display them.
+* Display all substantial intermediate results using the `display` function.
+* You MUST display the final result using the `display` function.
+"""
+
+
 def determine_missing_dependencies(code, stdout, stderr):
     import json
     from sand_bob import WHITELIST_DEPENDENCIES, config
@@ -111,14 +144,22 @@ def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_outp
         code = prefix_code + "\n"
     else:
         code = ""
-    code = code + extract_code(config.prompt_function_generate_code(prompt))
+    
+    messages = [
+        {"role": "system", "content": system_prompt()},
+        {"role": "user", "content": prompt}
+        ]
+    code = code + extract_code(config.prompt_function_generate_code(messages))
     if suffix_code:
         code += "\n" + suffix_code
 
-    result = run_auto_fix(code, 
+    result, code, dependencies, n_a = run_auto_fix(code, 
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
                           n_attempts=n_attempts)
+    
+    if delimiter() in code:
+        code = code.split(delimiter())[1]
 
-    return simplify(result.stdout) == expected_output, code, result.stdout, result.stderr
+    return simplify(result.stdout) == expected_output, code, result

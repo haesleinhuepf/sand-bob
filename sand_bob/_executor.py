@@ -6,7 +6,7 @@ import time
 import tempfile
 import os
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 import docker
 from docker.errors import DockerException
 import subprocess
@@ -19,6 +19,10 @@ class ExecutionResult:
     exit_code: int
     execution_time: float
     container_id: Optional[str] = None
+    code: Optional[str] = None
+    dependencies: Optional[List[str]] = None
+    traceback: Optional[str] = None
+    files: Optional[Dict[str, str]] = None
 
 
 def execute(code: str, dependencies: List[str], 
@@ -119,6 +123,7 @@ class CodeExecutor:
         Returns:
             ExecutionResult with stdout, stderr, exit_code, and execution_time
         """
+        from ._code_gen import display_prefix_code, delimiter
         start_time = time.time()
         
         try:
@@ -142,6 +147,13 @@ class CodeExecutor:
             
             # Create temporary directory for the code
             with tempfile.TemporaryDirectory() as temp_dir:
+                # Create display output directory
+                display_output_host_path = os.path.join(temp_dir, "display_output")
+                display_output_container_path = "/display_output"
+                os.makedirs(display_output_host_path, exist_ok=True)
+                if delimiter() not in code:
+                    code = display_prefix_code("/display_output") + code
+
                 # Write code to a file
                 code_file = os.path.join(temp_dir, "code.py")
                 with open(code_file, "w") as f:
@@ -164,24 +176,37 @@ class CodeExecutor:
                 # Build and run container
                 container = self._build_and_run_container(
                     temp_dir, code_file, input_host_path, input_container_path, 
-                    output_host_path, output_container_path
+                    output_host_path, output_container_path,
+                    display_output_host_path, display_output_container_path
                 )
                 
                 self.containers.append(container.id)
                 
                 # Get execution results
                 result = self._get_execution_result(container, start_time)
-                
-                return result
-                
+
+                # add files in output directory to result
+                result.files = {}
+                for file in os.listdir(display_output_host_path):
+                    result.files[os.path.join(display_output_host_path, file)] = open(os.path.join(display_output_host_path, file), "rb").read()
+                                
         except Exception as e:
+            import traceback
             # Return error result
-            return ExecutionResult(
+            result = ExecutionResult(
                 stdout="",
                 stderr=str(e),
                 exit_code=1,
-                execution_time=time.time() - start_time
+                execution_time=time.time() - start_time,
+                traceback=traceback.format_exc()
             )
+        
+        result.code = code
+        result.dependencies = dependencies
+
+        return result
+
+
     
     def _create_dockerfile(self, has_dependencies: bool) -> str:
         """Create a Dockerfile for the execution environment."""
@@ -220,7 +245,9 @@ CMD ["python", "code.py"]
         input_host_path: Optional[str] = None, 
         input_container_path: str = "/input_data",
         output_host_path: Optional[str] = None, 
-        output_container_path: str = "/output_data"
+        output_container_path: str = "/output_data",
+        display_output_host_path: Optional[str] = None,
+        display_output_container_path: str = "/display_output"
     ) -> docker.models.containers.Container:
         """Build and run the Docker container."""
         # Build the image
@@ -253,6 +280,12 @@ CMD ["python", "code.py"]
         if output_host_path is not None:
             volumes[output_host_path] = {
                 'bind': output_container_path,
+                'mode': 'rw'
+            }
+
+        if display_output_host_path is not None:
+            volumes[display_output_host_path] = {
+                'bind': display_output_container_path,
                 'mode': 'rw'
             }
             
