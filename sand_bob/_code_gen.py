@@ -29,7 +29,7 @@ Your task is to generate a fully functional code snippet that will be used to fu
 * When intermediate or final results are computed, use the pre-existing `display` function to display them.
 * Display all substantial intermediate results using the `display` function.
 * You MUST display the final result using the `display` function.
-* NEVER overwrite the `display` function.
+* NEVER overwrite or redefine the `display` function. It exists for a reason.
 * When working with matplotlib plots, use `display(fig)` to display figures. Avoid `plt.show()`.
 """
 
