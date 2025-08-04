@@ -44,7 +44,7 @@ class ExecutionResult:
                 if filename.endswith(".svg") or filename.endswith(".png"):
                     parsed_output += f"<p><img src='data:image/svg+xml;base64,{base64.b64encode(content.encode('utf-8')).decode('utf-8')}'/></p>"
                 elif filename.endswith(".csv"):
-                    parsed_output += f"<p>{str(content)}</p>"
+                    parsed_output += f"<pre>{str(content)}</pre>"
         if len(temp_content) > 0:
             parsed_output += temp_content
 
