@@ -26,9 +26,11 @@ Your task is to generate a fully functional code snippet that will be used to fu
 
 # Framework constraints
 * Use the following libraries when necessary: {", ".join(WHITELIST_DEPENDENCIES)}
-* When intermediate or final results are computed, use the `display` function to display them.
+* When intermediate or final results are computed, use the pre-existing `display` function to display them.
 * Display all substantial intermediate results using the `display` function.
 * You MUST display the final result using the `display` function.
+* NEVER overwrite the `display` function.
+* When working with matplotlib plots, use `display(fig)` to display figures. Avoid `plt.show()`.
 """
 
 

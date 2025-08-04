@@ -24,6 +24,58 @@ class ExecutionResult:
     traceback: Optional[str] = None
     files: Optional[Dict[str, str]] = None
 
+    def _repr_html_(self):
+        from IPython.display import display
+        import pandas as pd
+        from io import BytesIO
+        import base64
+
+        parsed_output = ""
+        temp_content = self.stdout
+        for filename, content in self.objects.items():
+            if filename.endswith(".svg") or filename.endswith(".csv"):
+                if filename.endswith(".svg"):
+                    filename = filename[:-4] + ".png"
+                temp = temp_content.split(f"![{filename}](/display_output/{filename})")
+                if len(temp) == 1:
+                    print(f"Warning: {filename} not found in stdout")
+                temp_content = temp[1]
+                parsed_output += f"{temp[0]}"
+                if filename.endswith(".svg") or filename.endswith(".png"):
+                    parsed_output += f"<p><img src='data:image/svg+xml;base64,{base64.b64encode(content.encode('utf-8')).decode('utf-8')}'/></p>"
+                elif filename.endswith(".csv"):
+                    parsed_output += f"<p>{str(content)}</p>"
+        if len(temp_content) > 0:
+            parsed_output += temp_content
+
+        #print(parsed_output)
+
+        additional_html = ""
+        if self.files is not None and len(self.files) > 0:
+            additional_html += "<li>Files:<ul>"
+            for file, content in self.files.items():
+                additional_html += f"<li><a href='{file}'>{file}</a></li>"
+            additional_html += "</ul></li>"
+        if self.traceback is not None:
+            additional_html += "<li>Traceback:\n<pre>{self.traceback}</pre></li>"
+
+        return f"""
+        <div>
+            {parsed_output}
+            <details><summary>Details</summary>
+            <ul>
+            <li><details><summary>StdOut ({len(self.stdout)})</summary><pre>{self.stdout}</pre></details></li>
+            <li><details><summary>StdErr ({len(self.stderr)})</summary><pre>{self.stderr}</pre></details></li>
+            <li>Dependencies:\n{", ".join(self.dependencies)}</li>
+            <li>Exit Code:\n{self.exit_code}</li>
+            {additional_html}
+            <li>Execution Time:\n{self.execution_time}</li>
+            <li><details><summary>Code</summary><pre>{self.code}<pre></details></li>
+            </ul>
+            </details>
+        </div>
+        """
+
 
 def execute(code: str, dependencies: List[str], 
             input_host_path: Optional[str] = None, 
@@ -126,34 +178,35 @@ class CodeExecutor:
         from ._code_gen import display_prefix_code, delimiter
         start_time = time.time()
         
-        try:
-            # Validate input host path if provided
-            if input_host_path is not None:
-                input_host_path = os.path.abspath(input_host_path)
-                if not os.path.exists(input_host_path):
-                    raise ValueError(f"Input host path does not exist: {input_host_path}")
-                
-                if not os.path.isdir(input_host_path):
-                    raise ValueError(f"Input host path is not a directory: {input_host_path}")
+    
+        # Validate input host path if provided
+        if input_host_path is not None:
+            input_host_path = os.path.abspath(input_host_path)
+            if not os.path.exists(input_host_path):
+                raise ValueError(f"Input host path does not exist: {input_host_path}")
             
-            # Validate output host path if provided
-            if output_host_path is not None:
-                output_host_path = os.path.abspath(output_host_path)
-                if not os.path.exists(output_host_path):
-                    raise ValueError(f"Output host path does not exist: {output_host_path}")
-                
-                if not os.path.isdir(output_host_path):
-                    raise ValueError(f"Output host path is not a directory: {output_host_path}")
+            if not os.path.isdir(input_host_path):
+                raise ValueError(f"Input host path is not a directory: {input_host_path}")
+        
+        # Validate output host path if provided
+        if output_host_path is not None:
+            output_host_path = os.path.abspath(output_host_path)
+            if not os.path.exists(output_host_path):
+                raise ValueError(f"Output host path does not exist: {output_host_path}")
             
-            # Create temporary directory for the code
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Create display output directory
-                display_output_host_path = os.path.join(temp_dir, "display_output")
-                display_output_container_path = "/display_output"
-                os.makedirs(display_output_host_path, exist_ok=True)
-                if delimiter() not in code:
-                    code = display_prefix_code("/display_output") + code
+            if not os.path.isdir(output_host_path):
+                raise ValueError(f"Output host path is not a directory: {output_host_path}")
+        
+        # Create temporary directory for the code
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create display output directory
+            display_output_host_path = os.path.join(temp_dir, "display_output")
+            display_output_container_path = "/display_output"
+            os.makedirs(display_output_host_path, exist_ok=True)
+            if delimiter() not in code:
+                code = display_prefix_code("/display_output") + code
 
+            try:
                 # Write code to a file
                 code_file = os.path.join(temp_dir, "code.py")
                 with open(code_file, "w") as f:
@@ -184,28 +237,45 @@ class CodeExecutor:
                 
                 # Get execution results
                 result = self._get_execution_result(container, start_time)
-
-                # add files in output directory to result
-                result.files = {}
-                for file in os.listdir(display_output_host_path):
-                    result.files[os.path.join(display_output_host_path, file)] = open(os.path.join(display_output_host_path, file), "rb").read()
-                                
-        except Exception as e:
-            import traceback
-            # Return error result
-            result = ExecutionResult(
-                stdout="",
-                stderr=str(e),
-                exit_code=1,
-                execution_time=time.time() - start_time,
-                traceback=traceback.format_exc()
-            )
+                                    
+            except Exception as e:
+                import traceback
+                # Return error result
+                result = ExecutionResult(
+                    stdout="",
+                    stderr=str(e),
+                    exit_code=1,
+                    execution_time=time.time() - start_time,
+                    traceback=traceback.format_exc()
+                )
         
-        result.code = code
-        result.dependencies = dependencies
+            result.code = code
+            result.dependencies = dependencies
 
+            # add files in output directory to result
+            result.files = {}
+            for file in os.listdir(display_output_host_path):
+                result.files[str(os.path.join(display_output_container_path, file)).replace("\\", "/")] = open(os.path.join(display_output_host_path, file), "rb").read()
+        
+        from io import BytesIO
+
+        result.objects = {}
+        for filename, content in result.files.items():
+            print(filename)
+            if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
+                from skimage.io import imread
+                result.objects[filename] = imread(BytesIO(bytes(content)))
+            elif file.endswith(".csv"):
+                import pandas as pd
+                result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
+            elif file.endswith(".json"):
+                import json
+                result.objects[file] = json.loads(BytesIO(bytes(content)))
+            elif file.endswith(".txt") or filename.endswith(".svg"):
+                result.objects[file] = content.decode("utf-8")
+            else:
+                result.objects[file] = result.files[file]
         return result
-
 
     
     def _create_dockerfile(self, has_dependencies: bool) -> str:
