@@ -1,4 +1,4 @@
-from ._endpoints import prompt_scadsai_llm, prompt_openai
+from ._endpoints import prompt_scadsai_llm, prompt_openai, prompt_ollama
 
 class Config:
     def __init__(self):
