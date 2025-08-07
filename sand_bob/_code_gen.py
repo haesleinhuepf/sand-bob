@@ -132,14 +132,17 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
 
     #print("Sand box output:", result.stdout)
 
-    return result, code, dependencies, n_a + 1
+    result.code = code
+    result.dependencies = dependencies
+    result.n_attempts = n_a + 1
 
+    return result
 
-def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_output=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
     """
     Generate a code snippet that runs the given prompt and checks if the output is as expected.
     """
-    from ._utilities import extract_code, simplify
+    from ._utilities import extract_code
     from ._config import config
     
     if prefix_code:
@@ -155,13 +158,30 @@ def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_outp
     if suffix_code:
         code += "\n" + suffix_code
 
-    result, code, dependencies, n_a = run_auto_fix(code, 
+    result = run_auto_fix(code, 
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
                           n_attempts=n_attempts)
     
-    if delimiter() in code:
-        code = code.split(delimiter())[1]
+    return result
 
-    return simplify(result.stdout) == expected_output, code, result
+
+def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_output=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+
+    from ._utilities import simplify
+
+    result = generate_run(prompt=prompt, 
+                                prefix_code=prefix_code, 
+                                suffix_code=suffix_code, 
+                                dependencies=dependencies, 
+                                input_host_path=input_host_path, 
+                                input_container_path=input_container_path, 
+                                n_attempts=n_attempts)
+    
+    if delimiter() in result.code:
+        result.code = result.code.split(delimiter())[1]
+
+    result.result_check_ok = simplify(result.stdout) == expected_output
+    
+    return result

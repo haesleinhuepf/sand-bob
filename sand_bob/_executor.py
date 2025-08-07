@@ -23,6 +23,8 @@ class ExecutionResult:
     dependencies: Optional[List[str]] = None
     traceback: Optional[str] = None
     files: Optional[Dict[str, str]] = None
+    n_attempts: Optional[int] = None
+    result_check_ok: Optional[bool] = None
 
     def _repr_html_(self):
         from IPython.display import display
@@ -56,6 +58,10 @@ class ExecutionResult:
             for file, content in self.files.items():
                 additional_html += f"<li><a href='{file}'>{file}</a></li>"
             additional_html += "</ul></li>"
+        if self.n_attempts is not None:
+            additional_html += f"<li>Number of attempts:\n{self.n_attempts}</li>"
+        if self.result_check_ok is not None:
+            additional_html += f"<li>Result check ok:\n{self.result_check_ok}</li>"
         if self.traceback is not None:
             additional_html += "<li>Traceback:\n<pre>{self.traceback}</pre></li>"
 
@@ -209,7 +215,7 @@ class CodeExecutor:
             try:
                 # Write code to a file
                 code_file = os.path.join(temp_dir, "code.py")
-                with open(code_file, "w") as f:
+                with open(code_file, "w", encoding="utf-8") as f:
                     f.write(code)
                 
                 # Create requirements.txt if dependencies exist
