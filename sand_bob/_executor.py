@@ -28,6 +28,7 @@ class ExecutionResult:
     result_check_ok: Optional[bool] = None
     outputs: Optional[List[Dict]] = None
     feedback: Optional[str] = None
+    final_result: Optional[str] = None
 
     def _repr_html_(self):
         from IPython.display import display
@@ -351,7 +352,7 @@ class CodeExecutor:
                                         text = "".join(text)
                                     outputs.append({
                                         "type": "text/plain",
-                                        "data": text
+                                        "data": text.strip("\n")
                                     })
                                 else:
                                     print("unknown output type", o["data"].keys())
@@ -369,7 +370,7 @@ class CodeExecutor:
 
                                 outputs.append({
                                     "type": "text/plain",
-                                    "data": text
+                                    "data": text.strip("\n")
                                 })
                             else:
                                 print("unknown output", o.keys())
@@ -381,6 +382,7 @@ class CodeExecutor:
                 
                 # Store the outputs in the result
                 result.outputs = outputs
+                result.final_result = str(outputs[-1]["data"]).split("\n")[-1]
 
         
         return result

@@ -1,18 +1,21 @@
 GOOD_CODE = "Overall the code looks good."
 
 def system_prompt_code_generation():
-    return """
+    from sand_bob import WHITELIST_DEPENDENCIES
+    dependencies_str = ", ".join(WHITELIST_DEPENDENCIES)
+    return f"""
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
 Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
-Assume your code will be executed in a Jupyter notebook cell. That means you can use the `display` function to display results.
+Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
-* Use the following libraries when necessary: {", ".join(WHITELIST_DEPENDENCIES)}
-* When intermediate or final results are computed, use the pre-existing `display` function to display them.
-  Except when you work with matplotlib, then use `plt.show()` to display the plot.
-* NEVER overwrite or redefine the `display` function. It exists for a reason.
-* If the task is to generate a count, ratio or measurements, make sure to print the final result by the very end on a new line. 
-  In this case, the second-last line should be the name of the measurement and a physical unit (if relevant)
+* Use the following libraries when necessary: {dependencies_str}
+* Result output: 
+  * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
+  * The last print or display call should be the final result ONLY.
+  * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
+  * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
+  * If the task is to generate a plot, ENSURE to display the plot.
 """
 
 def system_prompt_code_feedback():
@@ -34,7 +37,8 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
 * Code complexity: 
   * Short and concise code is preferred. 
   * Do NOT propose adding main() functions as we are running the code in a Jupyter notebook.
-  * Avoid determining and displaying results and measurements that are not relevant for the final result.                  
+  * Avoid determining and displaying results and measurements that are not relevant for the final result.
+* Ensure that the final result is displayed using a separate print or display call by the very end of the code. 
 
 ## Feedback content
 Feedback should be short and concise. No need to be overly friendly.
