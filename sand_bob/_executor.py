@@ -27,7 +27,6 @@ class ExecutionResult:
     n_attempts: Optional[int] = None
     result_check_ok: Optional[bool] = None
     outputs: Optional[List[Dict]] = None
-    predecessor = None
     feedback: Optional[str] = None
 
     def _repr_html_(self):
@@ -326,6 +325,8 @@ class CodeExecutor:
 
             # Get the executed notebook from the container
             notebook_json = result.objects["notebook_executed.ipynb"]
+
+            json.dump(notebook_json, open("test.ipynb", "w"))
 
             #print("notebook_json", notebook_json)
 

@@ -9,6 +9,7 @@ Assume your code will be executed in a Jupyter notebook cell. That means you can
 # Framework constraints
 * Use the following libraries when necessary: {", ".join(WHITELIST_DEPENDENCIES)}
 * When intermediate or final results are computed, use the pre-existing `display` function to display them.
+  Except when you work with matplotlib, then use `plt.show()` to display the plot.
 * NEVER overwrite or redefine the `display` function. It exists for a reason.
 * If the task is to generate a count, ratio or measurements, make sure to print the final result by the very end on a new line. 
   In this case, the second-last line should be the name of the measurement and a physical unit (if relevant)
@@ -79,8 +80,10 @@ def fix_error_in_code(code, stdout, stderr):
     prompt = f"""
     You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
     Your task is to determine the new code that is required to fix the error.
+    Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
+    
     The code is:
-    ```python	
+    ```
     {code}
     ```
     The traceback is:
@@ -113,11 +116,15 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
     Returns:
         The result of the execution, the potentially fixed code, and all dependencies including potentially new ones.
     """
-    from sand_bob import execute
+    from sand_bob import execute, execute_notebook
+    from sand_bob._utilities import is_notebook
     original_dependencies = dependencies.copy()
 
     for n_a in range(n_attempts):
-        result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        if is_notebook(code):
+            result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        else:
+            result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         if "Traceback" in result.stdout:
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
                 new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
@@ -264,6 +271,7 @@ And the result was:
 def incorporate_feedback(code, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data"):
     res = generate_run(f"""
     Given some code and detailed feedback, propose new code that incroporates the feedback.
+    Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
 
     # Code
 
@@ -279,6 +287,9 @@ def incorporate_feedback(code, feedback, dependencies=[], input_host_path=None, 
     Provide the updated code which incorporates the feedback. Skip all explanations.
     """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
     
+
+
+
     return res
 
 
@@ -296,11 +307,54 @@ def generate_and_optimize_code(code, dependencies=[], input_host_path=None, inpu
             break
 
         # incorporating feedback
-        old_res = res
         res = incorporate_feedback(res.code, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
-        res.predecessor = old_res
+
         dependencies = res.dependencies
 
         code = res.code
     return res
+
+
+def python_code_to_beautiful_notebook(code, dependencies=[], input_host_path=None, input_container_path="/input_data"):
+    from ._config import config
+    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown
+
+    dependencies_str = ", ".join(dependencies)
+
+    prompt = f"""
+    You are an expert in python programming. You are given a python code snippet.
+    Your task is to convert the code into a beautiful Jupyter notebook in JSON format. Please take care of the following:
+    * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
+    * Add a cell with installation instructions for these dependencies: {dependencies_str}
+    * Split the code into multiple cells.
+    * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
+    * Reuse comments as markdown cells above the respective code cells.
+    * Add markdown cells where there are none.
+    * Do not generate any output.
+
+    The code is:
+    ```
+    {code}
+    ```
+
+    Now convert the code into a beautiful Jupyter notebook in JSON format. No additional explanation is needed.
+    """
+
+    notebook_str = config.prompt_function_notebook_conversion(prompt)
+
+    notebook_str = remove_outer_markdown(notebook_str)
+    notebook_str = erase_outputs_of_code_cells(notebook_str)
+
+    from ._executor import execute_notebook
+    res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+
+
+    feedback = generate_code_feedback(res.code, res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
+
+    res = incorporate_feedback(res.code, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+
+    return res
+
+
+
 

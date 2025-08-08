@@ -137,3 +137,14 @@ def python_code_to_notebook(python_code: str):
     return json.dumps(notebook, indent=1)
 
 
+def is_notebook(code):
+    import json
+    stripped = code.strip()
+    if stripped.startswith("{"):
+        try:
+            json.loads(stripped)
+            return True
+        except:
+            return False
+    return False
+
