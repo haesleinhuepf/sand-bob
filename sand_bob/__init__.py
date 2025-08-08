@@ -2,6 +2,7 @@
 Sand-Bob - A Python library for executing code in Docker containers.
 """
 from ._executor import ExecutionResult, execute, execute_notebook
+from ._bob import bob, initialize
 
 from ._config import config
 
