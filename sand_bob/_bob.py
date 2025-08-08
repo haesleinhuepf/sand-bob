@@ -2,6 +2,7 @@ from IPython.core.magic import register_line_cell_magic
 
 class Context:
     input_host_path: str = None
+    dependencies: list = []
 
 @register_line_cell_magic
 def bob(line, cell=None):
