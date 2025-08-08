@@ -182,6 +182,11 @@ def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_outp
     if delimiter() in result.code:
         result.code = result.code.split(delimiter())[1]
 
-    result.result_check_ok = simplify(result.stdout) == expected_output
+    if isinstance(expected_output, str):
+        result.result_check_ok = simplify(result.stdout) == expected_output
+    elif callable(expected_output):
+        result.result_check_ok = expected_output(result.stdout)
+    else:
+        raise ValueError(f"Expected output must be a string or a callable, got {type(expected_output)}")
     
     return result
