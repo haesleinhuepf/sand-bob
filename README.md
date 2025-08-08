@@ -44,29 +44,14 @@ print(f"Exit code: {result.exit_code}")
 from sand_bob import execute_notebook
 import json
 
-# Create a notebook JSON string
-notebook_json = {
-    "cells": [
-        {
-            "cell_type": "code",
-            "execution_count": None,
-            "metadata": {},
-            "outputs": [],
-            "source": ["import pandas as pd\n", "print('Hello from notebook!')"]
-        }
-    ],
-    "metadata": {
-        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-        "language_info": {"name": "python", "version": "3.8.0"}
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
+# Read notebook file
+with open('plot_sigmoid_function.ipynb', 'r') as file:
+    notebook_json = file.read()
 
 # Execute the notebook
 result = execute_notebook(
-    notebook_json=json.dumps(notebook_json),
-    dependencies=["pandas"]
+    notebook_json=notebook_json,
+    dependencies=["numpy", "matplotlib", "seaborn"]
 )
 print(result.stdout)
 ```

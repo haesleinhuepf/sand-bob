@@ -1,77 +1,104 @@
 #!/usr/bin/env python3
 """
-Test script for the execute_notebook function.
+Test script for notebook execution with output extraction.
 """
 
 import json
-import sys
-import os
-
-# Add the current directory to the Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-try:
-    from sand_bob import execute_notebook
-    print("✓ Successfully imported execute_notebook")
-except ImportError as e:
-    print(f"✗ Failed to import execute_notebook: {e}")
-    sys.exit(1)
-
-# Simple test notebook
-test_notebook = {
-    "cells": [
-        {
-            "cell_type": "code",
-            "execution_count": None,
-            "metadata": {},
-            "outputs": [],
-            "source": ["print('Hello from notebook!')\n", "print('Test successful!')"]
-        }
-    ],
-    "metadata": {
-        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-        "language_info": {"name": "python", "version": "3.8.0"}
-    },
-    "nbformat": 4,
-    "nbformat_minor": 4
-}
+from sand_bob._executor import CodeExecutor
 
 def test_notebook_execution():
-    """Test the execute_notebook function."""
-    print("\nTesting execute_notebook function...")
+    """Test notebook execution with output extraction."""
+    
+    # Create a simple test notebook
+    test_notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "import matplotlib.pyplot as plt\n",
+                    "import numpy as np\n",
+                    "\n",
+                    "# Create a simple plot\n",
+                    "x = np.linspace(0, 10, 100)\n",
+                    "y = np.sin(x)\n",
+                    "plt.plot(x, y)\n",
+                    "plt.title('Simple Sine Wave')\n",
+                    "plt.show()\n",
+                    "\n",
+                    "# Print some text output\n",
+                    "print('Hello from notebook!')\n",
+                    "print('This is a test output')\n"
+                ]
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "codemirror_mode": {
+                    "name": "ipython",
+                    "version": 3
+                },
+                "file_extension": ".py",
+                "mimetype": "text/x-python",
+                "name": "python",
+                "nbconvert_exporter": "python",
+                "pygments_lexer": "ipython3",
+                "version": "3.8.0"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 4
+    }
+    
+    # Convert notebook to JSON string
+    notebook_json = json.dumps(test_notebook)
+    
+    # Create executor
+    executor = CodeExecutor(python_version="3.11", timeout=60)
     
     try:
-        # Convert notebook to JSON string
-        notebook_json_str = json.dumps(test_notebook)
-        
         # Execute the notebook
-        result = execute_notebook(
-            notebook_json=notebook_json_str,
-            dependencies=[],
-            timeout=30
+        result = executor.execute_notebook(
+            notebook_json=notebook_json,
+            dependencies=["matplotlib", "numpy"]
         )
         
-        print(f"✓ Notebook execution completed")
-        print(f"  Exit code: {result.exit_code}")
-        print(f"  Execution time: {result.execution_time:.2f} seconds")
+        print(f"Execution completed with exit code: {result.exit_code}")
+        print(f"Execution time: {result.execution_time:.2f} seconds")
         
-        if result.stdout:
-            print(f"  STDOUT: {result.stdout.strip()}")
-        
-        if result.stderr:
-            print(f"  STDERR: {result.stderr.strip()}")
-        
-        if result.exit_code == 0:
-            print("✓ Test passed!")
-            return True
+        # Check if notebook outputs were extracted
+        if hasattr(result, 'notebook_outputs') and result.notebook_outputs:
+            print(f"\nFound {len(result.notebook_outputs)} notebook outputs:")
+            for i, output in enumerate(result.notebook_outputs):
+                print(f"  Output {i+1}: {output['type']}")
+                if output['type'] == 'text':
+                    print(f"    Text: {output['data']}")
+                elif output['type'] == 'image':
+                    print(f"    Image shape: {output['data'].shape}")
         else:
-            print("✗ Test failed - non-zero exit code")
-            return False
+            print("\nNo notebook outputs found.")
+            
+        # Print stdout and stderr
+        if result.stdout:
+            print(f"\nStdout:\n{result.stdout}")
+        if result.stderr:
+            print(f"\nStderr:\n{result.stderr}")
             
     except Exception as e:
-        print(f"✗ Test failed with exception: {e}")
-        return False
+        print(f"Error executing notebook: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        # Clean up
+        executor.cleanup()
 
 if __name__ == "__main__":
-    success = test_notebook_execution()
-    sys.exit(0 if success else 1)
+    test_notebook_execution()

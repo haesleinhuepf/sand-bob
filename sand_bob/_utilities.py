@@ -44,3 +44,96 @@ def remove_outer_markdown(text):
     text = text.strip("\n")
 
     return text
+
+
+def load_base64_image(base64_image: str):
+    """
+    Load a base64 encoded image into a PIL image and a NumPy array.
+    """
+    import base64
+    import io
+    from PIL import Image
+    import numpy as np
+    
+    # Decode the base64 string into bytes
+    png_bytes_decoded = base64.b64decode(base64_image)
+    
+    # Load the byte array as a Pillow image
+    image = Image.open(io.BytesIO(png_bytes_decoded))
+    
+    # Convert the Pillow image to a NumPy array
+    image_array = np.array(image)
+    
+    return image, image_array
+
+
+def erase_outputs_of_code_cells(notebook_file_content: str):
+    """
+    Erase outputs of code cells in a Jupyter notebook.
+
+    Parameters
+    ----------
+    notebook : str
+        The notebook content as a string.
+    """
+    import re
+    import json
+
+    # removed invalid characters
+    clean_file_content = re.sub(r'[\x00-\x1f\x7f]', '', notebook_file_content)
+
+    notebook = json.loads(clean_file_content)
+    for cell in notebook.get('cells', []):
+        if cell.get('cell_type') == 'code':
+            cell['outputs'] = []
+            cell['execution_count'] = None
+        #cell['id'] = None
+
+    notebook["metadata"] = {}
+
+    notebook_file_content = json.dumps(notebook, indent=1)
+    return notebook_file_content
+
+
+def python_code_to_notebook(python_code: str):
+    """
+    Convert a Python code string to a Jupyter notebook.
+    """
+    import json
+    
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [p + "\n" for p in python_code.split("\n")]
+                
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "codemirror_mode": {
+                    "name": "ipython",
+                    "version": 3
+                },
+                "file_extension": ".py",
+                "mimetype": "text/x-python",
+                "name": "python",
+                "nbconvert_exporter": "python",
+                "pygments_lexer": "ipython3",
+                "version": "3.8.0"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 4
+    }
+    return json.dumps(notebook, indent=1)
+
+

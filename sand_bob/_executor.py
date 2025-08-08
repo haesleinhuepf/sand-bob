@@ -5,6 +5,7 @@ Core execution functionality for Sand-Bob.
 import time
 import tempfile
 import os
+import json
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 import docker
@@ -25,6 +26,7 @@ class ExecutionResult:
     files: Optional[Dict[str, str]] = None
     n_attempts: Optional[int] = None
     result_check_ok: Optional[bool] = None
+    outputs: Optional[List[Dict]] = None
 
     def _repr_html_(self):
         from IPython.display import display
@@ -33,22 +35,14 @@ class ExecutionResult:
         import base64
 
         parsed_output = ""
-        temp_content = self.stdout
-        for filename, content in self.objects.items():
-            if filename.endswith(".svg") or filename.endswith(".csv"):
-                if filename.endswith(".svg"):
-                    filename = filename[:-4] + ".png"
-                temp = temp_content.split(f"![{filename}](/display_output/{filename})")
-                if len(temp) == 1:
-                    print(f"Warning: {filename} not found in stdout")
-                temp_content = temp[1]
-                parsed_output += f"{temp[0]}"
-                if filename.endswith(".svg") or filename.endswith(".png"):
-                    parsed_output += f"<p><img src='data:image/svg+xml;base64,{base64.b64encode(content.encode('utf-8')).decode('utf-8')}'/></p>"
-                elif filename.endswith(".csv"):
-                    parsed_output += f"<pre>{str(content)}</pre>"
-        if len(temp_content) > 0:
-            parsed_output += temp_content
+        if self.outputs is not None:
+            for output in self.outputs:
+                if output["type"] == "image/png":
+                    parsed_output += f"<p><img src='data:image/png;base64,{output['data']}'/></p>"
+                elif output["type"] == "text/plain":
+                    parsed_output += f"<pre>{output['data']}</pre>"
+                else:
+                    parsed_output += f"<pre>{output['data']}</pre>"
 
         #print(parsed_output)
 
@@ -56,7 +50,7 @@ class ExecutionResult:
         if self.files is not None and len(self.files) > 0:
             additional_html += "<li>Files:<ul>"
             for file, content in self.files.items():
-                additional_html += f"<li><a href='{file}'>{file}</a></li>"
+                additional_html += f"<li>{file}</li>"
             additional_html += "</ul></li>"
         if self.n_attempts is not None:
             additional_html += f"<li>Number of attempts:\n{self.n_attempts}</li>"
@@ -83,7 +77,7 @@ class ExecutionResult:
         """
 
 
-def execute(code: str, dependencies: List[str], 
+def execute(code: str, dependencies: List[str] = [], 
             input_host_path: Optional[str] = None, 
             input_container_path: str = "/input_data",
             output_host_path: Optional[str] = None, 
@@ -110,12 +104,22 @@ def execute(code: str, dependencies: List[str],
     Returns:
         The result of the execution.
     """
-    from ._executor import CodeExecutor
-    _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit)
-    return _executor.execute(code, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
+    from ._utilities import python_code_to_notebook
+    notebook_json = python_code_to_notebook(code)
+
+    return execute_notebook(notebook_json, 
+                     dependencies=dependencies, 
+                     input_host_path=input_host_path, 
+                     input_container_path=input_container_path, 
+                     output_host_path=output_host_path, 
+                     output_container_path=output_container_path,
+                     python_version=python_version,
+                     base_image=base_image,
+                     timeout=timeout,
+                     memory_limit=memory_limit)
 
 
-def execute_notebook(notebook_json: str, dependencies: List[str], 
+def execute_notebook(notebook_json: str, dependencies: List[str] = [], 
                     input_host_path: Optional[str] = None, 
                     input_container_path: str = "/input_data",
                     output_host_path: Optional[str] = None, 
@@ -299,7 +303,6 @@ class CodeExecutor:
 
         result.objects = {}
         for filename, content in result.files.items():
-            print(filename)
             if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
                 from skimage.io import imread
                 result.objects[filename] = imread(BytesIO(bytes(content)))
@@ -339,6 +342,8 @@ class CodeExecutor:
         Returns:
             ExecutionResult with stdout, stderr, exit_code, and execution_time
         """
+        from ._utilities import load_base64_image
+        import json
         start_time = time.time()
         
         # Validate input host path if provided
@@ -381,7 +386,7 @@ class CodeExecutor:
                             f.write(f"{dep}\n")
                 
                 # Create Dockerfile for notebook execution
-                dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None)
+                dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None, display_output_container_path)
                 dockerfile_path = os.path.join(temp_dir, "Dockerfile")
                 with open(dockerfile_path, "w") as f:
                     f.write(dockerfile_content)
@@ -421,20 +426,81 @@ class CodeExecutor:
 
         result.objects = {}
         for filename, content in result.files.items():
-            print(filename)
             if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
                 from skimage.io import imread
                 result.objects[filename] = imread(BytesIO(bytes(content)))
             elif file.endswith(".csv"):
                 import pandas as pd
                 result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
-            elif file.endswith(".json"):
+            elif file.endswith(".json") or filename.endswith(".ipynb"):
                 import json
-                result.objects[file] = json.loads(BytesIO(bytes(content)))
+                result.objects[file] = json.load(BytesIO(bytes(content)))
             elif file.endswith(".txt") or filename.endswith(".svg"):
                 result.objects[file] = content.decode("utf-8")
             else:
-                result.objects[file] = result.files[file]
+                result.objects[file] = content
+
+        result.outputs = []
+        if "notebook_executed.ipynb" in result.objects:
+            # Try to copy the executed notebook from the container
+            notebook_json = None
+
+            # Get the executed notebook from the container
+            notebook_json = result.objects["notebook_executed.ipynb"]
+
+            if notebook_json is not None:
+                outputs = []
+                for c in notebook_json["cells"]:
+                    if "outputs" in c:
+                        for o in c["outputs"]:
+                            if "data" in o:
+                                if "image/png" in o["data"]:
+                                    base64_image = o["data"]["image/png"]
+                                    pil_image, np_image = load_base64_image(base64_image)
+                                    outputs.append({
+                                        "type": "image/png",
+                                        "data": base64_image,
+                                        "np_image": np_image,
+                                        "pil_image": pil_image
+                                    })
+                                elif 'text/plain' in o["data"]:
+                                    text = o["data"]["text/plain"]
+                                    if isinstance(text, list):
+                                        text = "".join(text)
+                                    outputs.append({
+                                        "type": "text/plain",
+                                        "data": text
+                                    })
+                                else:
+                                    print("unknown output type", o["data"].keys())
+                                    # Handle other output types
+                                    output_types = list(o["data"].keys())
+                                    outputs.append({
+                                        "type": "unknown",
+                                        "data": o["data"],
+                                        "output_types": output_types
+                                    })
+                            elif "text" in o:
+                                text = o["text"]
+                                if isinstance(text, list):
+                                    text = "".join(text)
+
+                                outputs.append({
+                                    "type": "text/plain",
+                                    "data": text
+                                })
+                            else:
+                                print("unknown output", o.keys())
+                                # Handle outputs without data (like execution count, etc.)
+                                outputs.append({
+                                    "type": "metadata",
+                                    "data": o
+                                })
+                
+                # Store the outputs in the result
+                result.outputs = outputs
+
+        
         return result
 
     
@@ -468,8 +534,10 @@ CMD ["python", "code.py"]
 """
         return dockerfile
     
-    def _create_notebook_dockerfile(self, has_dependencies: bool) -> str:
+    def _create_notebook_dockerfile(self, has_dependencies: bool, output_container_path: str) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
+
+
         dockerfile = f"""
 FROM {self.base_image}
 
@@ -492,12 +560,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 """
         
-        dockerfile += """
+        dockerfile += f"""
 # Copy the notebook file
 COPY notebook.ipynb .
 
-# Execute the notebook using nbconvert and output to stdout
-CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--stdout"]
+# Execute the notebook using nbconvert and save to file
+CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
 """
         return dockerfile
     
