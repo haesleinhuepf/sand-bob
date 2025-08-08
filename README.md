@@ -19,6 +19,8 @@ pip install sand-bob
 
 ## Quick Start
 
+### Execute Python Code
+
 ```python
 from sand_bob import execute
 
@@ -34,6 +36,39 @@ print(df)
 result = execute(code, dependencies=["pandas"])
 print(result.stdout)
 print(f"Exit code: {result.exit_code}")
+```
+
+### Execute Jupyter Notebooks
+
+```python
+from sand_bob import execute_notebook
+import json
+
+# Create a notebook JSON string
+notebook_json = {
+    "cells": [
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": ["import pandas as pd\n", "print('Hello from notebook!')"]
+        }
+    ],
+    "metadata": {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.8.0"}
+    },
+    "nbformat": 4,
+    "nbformat_minor": 4
+}
+
+# Execute the notebook
+result = execute_notebook(
+    notebook_json=json.dumps(notebook_json),
+    dependencies=["pandas"]
+)
+print(result.stdout)
 ```
 
 ## Advanced Usage
@@ -109,10 +144,31 @@ if result.exit_code != 0:
 
 ### execute
 
+Execute Python code in a Docker container.
+
+**Parameters:**
 - `code` (str): The code to execute.
 - `dependencies` (List[str]): The dependencies to install.
-- `host_path` (Optional[str]): The path to the directory on the host to mount (optional).
-- `container_path` (str): The path inside the container where the volume will be mounted (optional).
+- `input_host_path` (Optional[str]): The path to the directory on the host to mount as read-only input (optional).
+- `input_container_path` (str): The path inside the container where the input volume will be mounted (optional).
+- `output_host_path` (Optional[str]): The path to the directory on the host to mount as read-write output (optional).
+- `output_container_path` (str): The path inside the container where the output volume will be mounted (optional).
+- `python_version` (str): The Python version to use (optional).
+- `base_image` (str): The base image to use (optional).
+- `timeout` (int): The timeout for the execution (optional).
+- `memory_limit` (str): The memory limit for the container (optional).
+
+### execute_notebook
+
+Execute a Jupyter notebook in a Docker container using nbconvert.
+
+**Parameters:**
+- `notebook_json` (str): The notebook JSON string to execute.
+- `dependencies` (List[str]): The dependencies to install.
+- `input_host_path` (Optional[str]): The path to the directory on the host to mount as read-only input (optional).
+- `input_container_path` (str): The path inside the container where the input volume will be mounted (optional).
+- `output_host_path` (Optional[str]): The path to the directory on the host to mount as read-write output (optional).
+- `output_container_path` (str): The path inside the container where the output volume will be mounted (optional).
 - `python_version` (str): The Python version to use (optional).
 - `base_image` (str): The base image to use (optional).
 - `timeout` (int): The timeout for the execution (optional).
@@ -125,6 +181,10 @@ if result.exit_code != 0:
 - `exit_code` (int): Exit code of the execution
 - `execution_time` (float): Execution time in seconds
 - `container_id` (Optional[str]): ID of the container used for execution
+- `code` (Optional[str]): The original code or notebook JSON that was executed
+- `dependencies` (Optional[List[str]]): The dependencies that were installed
+- `files` (Optional[Dict[str, str]]): Files generated during execution
+- `traceback` (Optional[str]): Traceback information if an error occurred
 
 ## Examples
 

@@ -115,6 +115,38 @@ def execute(code: str, dependencies: List[str],
     return _executor.execute(code, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
 
 
+def execute_notebook(notebook_json: str, dependencies: List[str], 
+                    input_host_path: Optional[str] = None, 
+                    input_container_path: str = "/input_data",
+                    output_host_path: Optional[str] = None, 
+                    output_container_path: str = "/output_data",
+                    python_version="3.11", 
+                    base_image: Optional[str] = None, 
+                    timeout: int = 30, 
+                    memory_limit: str = "512m") -> ExecutionResult:
+    """
+    Execute a Jupyter notebook in a Docker container using nbconvert.
+
+    Args:
+        notebook_json: The notebook JSON string to execute.
+        dependencies: The dependencies to install.
+        input_host_path: Optional path to the directory on the host to mount as read-only input.
+        input_container_path: Path inside the container where the input volume will be mounted.
+        output_host_path: Optional path to the directory on the host to mount as read-write output.
+        output_container_path: Path inside the container where the output volume will be mounted.
+        python_version: The Python version to use (optional).
+        base_image: The base image to use (optional).
+        timeout: The timeout for the execution (optional).
+        memory_limit: The memory limit for the container (optional).
+
+    Returns:
+        The result of the execution.
+    """
+    from ._executor import CodeExecutor
+    _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit)
+    return _executor.execute_notebook(notebook_json, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
+
+
 class CodeExecutor:
     """
     Executes Python code in isolated Docker containers.
@@ -284,6 +316,128 @@ class CodeExecutor:
         return result
 
     
+    def execute_notebook(
+        self, 
+        notebook_json: str, 
+        dependencies: List[str], 
+        input_host_path: Optional[str] = None, 
+        input_container_path: str = "/input_data",
+        output_host_path: Optional[str] = None, 
+        output_container_path: str = "/output_data"
+    ) -> ExecutionResult:
+        """
+        Execute a Jupyter notebook in a Docker container using nbconvert.
+        
+        Args:
+            notebook_json: Jupyter notebook JSON string to execute
+            dependencies: List of Python package dependencies
+            input_host_path: Optional path to the directory on the host to mount as read-only input
+            input_container_path: Path inside the container where the input volume will be mounted
+            output_host_path: Optional path to the directory on the host to mount as read-write output
+            output_container_path: Path inside the container where the output volume will be mounted
+            
+        Returns:
+            ExecutionResult with stdout, stderr, exit_code, and execution_time
+        """
+        start_time = time.time()
+        
+        # Validate input host path if provided
+        if input_host_path is not None:
+            input_host_path = os.path.abspath(input_host_path)
+            if not os.path.exists(input_host_path):
+                raise ValueError(f"Input host path does not exist: {input_host_path}")
+            
+            if not os.path.isdir(input_host_path):
+                raise ValueError(f"Input host path is not a directory: {input_host_path}")
+        
+        # Validate output host path if provided
+        if output_host_path is not None:
+            output_host_path = os.path.abspath(output_host_path)
+            if not os.path.exists(output_host_path):
+                raise ValueError(f"Output host path does not exist: {output_host_path}")
+            
+            if not os.path.isdir(output_host_path):
+                raise ValueError(f"Output host path is not a directory: {output_host_path}")
+        
+        # Create temporary directory for the notebook
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create display output directory
+            display_output_host_path = os.path.join(temp_dir, "display_output")
+            display_output_container_path = "/display_output"
+            os.makedirs(display_output_host_path, exist_ok=True)
+
+            try:
+                # Write notebook JSON to a file
+                notebook_file = os.path.join(temp_dir, "notebook.ipynb")
+                with open(notebook_file, "w", encoding="utf-8") as f:
+                    f.write(notebook_json)
+                
+                # Create requirements.txt if dependencies exist
+                requirements_file = None
+                if dependencies:
+                    requirements_file = os.path.join(temp_dir, "requirements.txt")
+                    with open(requirements_file, "w") as f:
+                        for dep in dependencies:
+                            f.write(f"{dep}\n")
+                
+                # Create Dockerfile for notebook execution
+                dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None)
+                dockerfile_path = os.path.join(temp_dir, "Dockerfile")
+                with open(dockerfile_path, "w") as f:
+                    f.write(dockerfile_content)
+                
+                # Build and run container
+                container = self._build_and_run_container(
+                    temp_dir, notebook_file, input_host_path, input_container_path, 
+                    output_host_path, output_container_path,
+                    display_output_host_path, display_output_container_path
+                )
+                
+                self.containers.append(container.id)
+                
+                # Get execution results
+                result = self._get_execution_result(container, start_time)
+                                    
+            except Exception as e:
+                import traceback
+                # Return error result
+                result = ExecutionResult(
+                    stdout="",
+                    stderr=str(e),
+                    exit_code=1,
+                    execution_time=time.time() - start_time,
+                    traceback=traceback.format_exc()
+                )
+        
+            result.code = notebook_json
+            result.dependencies = dependencies
+
+            # add files in output directory to result
+            result.files = {}
+            for file in os.listdir(display_output_host_path):
+                result.files[str(os.path.join(display_output_container_path, file)).replace("\\", "/")] = open(os.path.join(display_output_host_path, file), "rb").read()
+        
+        from io import BytesIO
+
+        result.objects = {}
+        for filename, content in result.files.items():
+            print(filename)
+            if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
+                from skimage.io import imread
+                result.objects[filename] = imread(BytesIO(bytes(content)))
+            elif file.endswith(".csv"):
+                import pandas as pd
+                result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
+            elif file.endswith(".json"):
+                import json
+                result.objects[file] = json.loads(BytesIO(bytes(content)))
+            elif file.endswith(".txt") or filename.endswith(".svg"):
+                result.objects[file] = content.decode("utf-8")
+            else:
+                result.objects[file] = result.files[file]
+        return result
+
+    
     def _create_dockerfile(self, has_dependencies: bool) -> str:
         """Create a Dockerfile for the execution environment."""
         dockerfile = f"""
@@ -311,6 +465,39 @@ COPY code.py .
 
 # Run the code
 CMD ["python", "code.py"]
+"""
+        return dockerfile
+    
+    def _create_notebook_dockerfile(self, has_dependencies: bool) -> str:
+        """Create a Dockerfile for notebook execution using nbconvert."""
+        dockerfile = f"""
+FROM {self.base_image}
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \\
+    gcc \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Install jupyter and nbconvert
+RUN pip install --no-cache-dir jupyter nbconvert
+
+# Copy requirements and install Python dependencies
+"""
+        
+        if has_dependencies:
+            dockerfile += """
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+"""
+        
+        dockerfile += """
+# Copy the notebook file
+COPY notebook.ipynb .
+
+# Execute the notebook using nbconvert and output to stdout
+CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--stdout"]
 """
         return dockerfile
     

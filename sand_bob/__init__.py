@@ -1,12 +1,12 @@
 """
 Sand-Bob - A Python library for executing code in Docker containers.
 """
-from ._executor import ExecutionResult, execute
+from ._executor import ExecutionResult, execute, execute_notebook
 
 from ._config import config
 
 __version__ = "0.1.0"
-__all__ = ["ExecutionResult", "execute", "config"] 
+__all__ = ["ExecutionResult", "execute", "execute_notebook", "config"] 
 
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
                           "scikit-learn", "scikit-image", "pyclesperanto", 
