@@ -40,6 +40,15 @@ def remove_outer_markdown(text):
             if text.endswith(ending):
                 text = text[:-len(ending)]
                 break
+    elif any([ beginning in text for beginning in possible_beginnings]) and any([ ending in text for ending in possible_endings]):
+        for beginning in possible_beginnings:
+            if beginning in text:
+                text = text.split(beginning)[1]
+                break
+        for ending in possible_endings:
+            if ending in text:
+                text = text.split(ending)[0]
+                break
 
     text = text.strip("\n")
 
@@ -148,3 +157,7 @@ def is_notebook(code):
             return False
     return False
 
+
+def strip_ansi(text):
+    import re
+    return re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
