@@ -485,12 +485,14 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
     
     def _get_execution_result(self, container, start_time: float) -> ExecutionResult:
         """Get the execution result from the container."""
+        from ._utilities import strip_ansi
         try:
             # Wait for container to finish
             container.wait(timeout=self.timeout)
             
             # Get logs
             logs = container.logs().decode('utf-8')
+            logs = strip_ansi(logs)
             
             # Get container info
             container_info = container.attrs
