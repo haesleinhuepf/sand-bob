@@ -10,7 +10,6 @@ __version__ = "0.1.0"
 __all__ = ["ExecutionResult", "execute", "execute_notebook", "config"] 
 
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
-                          "scikit-learn", "scikit-image", "pyclesperanto", 
-                          "pyclesperanto_prototype", "cellpose", "tqdm",
+                          "scikit-learn", "scikit-image", "tqdm",
                           "statsmodels", "bioio", "apoc", "stackview"]
-
+#"pyclesperanto", "pyclesperanto_prototype", "cellpose",
