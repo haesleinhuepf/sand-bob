@@ -3,6 +3,7 @@ from IPython.core.magic import register_line_cell_magic
 class Context:
     input_host_path: str = None
     dependencies: list = []
+    n_attempts: int = 3
 
 @register_line_cell_magic
 def bob(line, cell=None):
@@ -13,12 +14,16 @@ def bob(line, cell=None):
     res = generate_and_optimize_code(user_input,
                                      dependencies=Context.dependencies,
                                      input_host_path=Context.input_host_path)
+    print("="*100)
     display(res)
 
 
-def initialize(input_host_path: str=None, dependencies: list=None):
+def initialize(input_host_path: str=None, 
+               dependencies: list=["scikit-image", "numpy", "pandas", "matplotlib", "seaborn", "tqdm", "scipy"], 
+               n_attempts: int=3):
     Context.input_host_path = input_host_path
     Context.dependencies = dependencies
+    Context.n_attempts = n_attempts
 
 
 def combine_user_input(line, cell):
