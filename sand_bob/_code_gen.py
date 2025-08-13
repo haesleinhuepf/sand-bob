@@ -18,8 +18,8 @@ Assume your code will be executed in a Jupyter notebook cell.
   * If the task is to generate a plot, ENSURE to display the plot.
 """
 
-def system_prompt_code_feedback():
-    return """
+def system_prompt_code_feedback(display_output_path):
+    return f"""
 You are an expert in python programming, data analysis, visualization and statistics. 
 When provided with Python code, together with corresponding results, 
 you will be asked to provide feedback on the code. The code is either an entire 
@@ -28,7 +28,11 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
 ## Feedback categories
 * Code quality: Check if the code is well-structured, readable, contains comments and follows best practices.
 * Statistics: Check if best-practice statistics are used, e.g. check if pre-conditions are checked before statistical tests are performed.
-* Image Analysis: In image processing workflows, check intermediate results are displayed and if they look reasonable.
+* Image Analysis: 
+  * In image processing workflows, check intermediate results are displayed and if they look reasonable.
+  * If a segmentation is performed, make sure the objects are neither over- nor under-segmented.
+  * If a segmentation is performed, make sure the right objects are segmented.
+  * If a segmentation result looks bad, propose a completely different segmentation method.
 * Data Analysis: Check if data is visualized before it is summarized.
 * Sanity checks: If the code is longer, make sure that there are sanity checks for intermediate results.
 * Documentation: Check if the code is documented and if the documentation is up to date.
@@ -38,7 +42,11 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
   * Short and concise code is preferred. 
   * Do NOT propose adding main() functions as we are running the code in a Jupyter notebook.
   * Avoid determining and displaying results and measurements that are not relevant for the final result.
-* Ensure that the final result is displayed using a separate print or display call by the very end of the code. 
+* Final result
+  * If the final result is a word, sentence or number, ensure that the final result is displayed using a separate print or display call by the very end of the code. 
+  * If the final result is a dataframe, save it in the folder {display_output_path} as .csv file and print its filename in the final output of the program.
+  * If the final result is an image, save it in the folder {display_output_path} as .tif file and print its filename in the final output of the program.
+  * If the final result is a plot, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program.
 
 ## Feedback content
 Feedback should be short and concise. No need to be overly friendly.
@@ -122,6 +130,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
     """
     from sand_bob import execute, execute_notebook
     from sand_bob._utilities import is_notebook
+    from IPython.display import display
     original_dependencies = dependencies.copy()
 
     for n_a in range(n_attempts):
@@ -130,6 +139,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         if "Traceback" in result.stdout:
+            display(result)
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
                 new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
                 if len(new_dependencies) == 0:
@@ -177,6 +187,8 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
     if suffix_code:
         code += "\n" + suffix_code
 
+    print("input_host_path:", input_host_path)
+
     result = run_auto_fix(code, 
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
@@ -215,7 +227,7 @@ def generate_code_feedback(code, list_of_objects=[], purpose=None):
         prefix = "We executed the following code and want to know it can be improved:"
     else:
         prefix = f"""
-We had a task and wrote code for it. Now we executed the code and want to know if the code can be improved, also in the context of the task.
+We had a task and wrote code for it. Now we executed the code, have the results, and want to know if the code can be improved, also in the context of the task.
 
 # Task
 
@@ -224,12 +236,22 @@ We had a task and wrote code for it. Now we executed the code and want to know i
 # Code
 
 We executed the following code:
+
+```
 """
 
-    messages = [{"role": "system", "content": system_prompt_code_feedback()}] + \
+    suffix = f"""
+```
+
+# Request for feedback
+Please let us know, what could be done to improve the code. 
+If there are no improvements, simply say '{GOOD_CODE}' by the end.
+"""
+
+    messages = [{"role": "system", "content": system_prompt_code_feedback("/display_output")}] + \
         code_and_outputs_to_messages(code, list_of_objects, 
                                     prefix=prefix, 
-                                    suffix=f"Please let us know, what could be done to improve the code. If there is not much potential, simply say '{GOOD_CODE}' by the end.")
+                                    suffix=suffix)
 
     return config.prompt_function_generate_code_feedback(messages)
 
@@ -272,11 +294,15 @@ And the result was:
     return messages
 
 
-def incorporate_feedback(code, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data"):
+def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data"):
     res = generate_run(f"""
-    Given some code and detailed feedback, propose new code that incroporates the feedback.
+    Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
     Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
 
+    # Task
+                       
+    {prompt}
+                       
     # Code
 
     ```
@@ -297,21 +323,28 @@ def incorporate_feedback(code, feedback, dependencies=[], input_host_path=None, 
     return res
 
 
-def generate_and_optimize_code(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+
+    from IPython.display import display, Markdown, HTML
     # code generation and execution
-    res = generate_run(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
+    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
     for n_a in range(n_attempts):
         dependencies = res.dependencies
 
+        display(Markdown(f"# {n_a + 1}. Result"))
+        display(res)
+
         # code inspection and feedback
-        feedback = generate_code_feedback(res.code, res.outputs)
+        feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
+
+        display(HTML("<details><summary>Feedback</summary>" + feedback + "</details>"))
 
         if GOOD_CODE in feedback:
             res.feedback = feedback
             break
 
         # incorporating feedback
-        res = incorporate_feedback(res.code, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
         dependencies = res.dependencies
 
