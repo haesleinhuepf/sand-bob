@@ -32,6 +32,7 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
   * In image processing workflows, check intermediate results are displayed and if they look reasonable.
   * If a segmentation is performed, make sure the objects are neither over- nor under-segmented.
   * If a segmentation is performed, make sure the right objects are segmented.
+  * If segmented objects look good in one reagion but not in another, use histogram equalization to improve the image quality before segmenting the image.
   * If a segmentation result looks bad, propose a completely different segmentation method.
 * Data Analysis: Check if data is visualized before it is summarized.
 * Sanity checks: If the code is longer, make sure that there are sanity checks for intermediate results.
@@ -272,7 +273,7 @@ And the result was:
 
     for i, output in enumerate(list_of_objects):
         if output["type"] == "image/png":
-            image_messages.append({"type": "image_url", "image_url": {"url": output['data']}})
+            image_messages.append({"type": "image_url", "image_url": {"url": "data:image/png;base64," +output['data']}})
             text_parts.append(f"[img{len(image_messages) + 1}]")
         else:
             text_parts.append(str(output['data']))
@@ -288,7 +289,7 @@ And the result was:
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": outputs}]
+                {"type": "text", "text": outputs}] + image_messages
         }]
 
     return messages
@@ -314,12 +315,9 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
     {feedback}
 
     # Your task
-    Provide the updated code which incorporates the feedback. Skip all explanations.
+    Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
     """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
     
-
-
-
     return res
 
 
@@ -330,6 +328,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
     for n_a in range(n_attempts):
         dependencies = res.dependencies
+        print("len code (bef):", len(res.code))
 
         display(Markdown(f"# {n_a + 1}. Result"))
         display(res)
@@ -339,12 +338,14 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         display(HTML("<details><summary>Feedback</summary>" + feedback + "</details>"))
 
-        if GOOD_CODE in feedback:
-            res.feedback = feedback
-            break
+        #if GOOD_CODE in feedback:
+        #    res.feedback = feedback
+        #    break
 
         # incorporating feedback
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+
+        print("len code (aft):", len(res.code))
 
         dependencies = res.dependencies
 
