@@ -75,6 +75,18 @@ def load_base64_image(base64_image: str):
     
     return image, image_array
 
+def np_image_to_base64_png(image_array):
+    import base64
+    import io
+    from PIL import Image
+    import numpy as np
+    
+    image = Image.fromarray(image_array)
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    return img_str
+
 
 def erase_outputs_of_code_cells(notebook_file_content: str):
     """
