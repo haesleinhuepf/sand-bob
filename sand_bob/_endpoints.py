@@ -51,7 +51,7 @@ def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b"):
     return response.choices[0].message.content
 
 
-def prompt_openai(message:str, model="gpt-4.1-2025-04-14"):
+def prompt_openai(message:str, model="gpt-5-mini"):
     """A prompt helper function that sends a message to openAI
     and returns only the text response.
     """
