@@ -1,3 +1,6 @@
+from ._parallel import parallel
+
+
 GOOD_CODE = "Overall the code looks good."
 
 def system_prompt_code_generation():
@@ -140,7 +143,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         if "Traceback" in result.stdout:
-            display(result)
+            #display(result)
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
                 new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
                 if len(new_dependencies) == 0:
@@ -188,7 +191,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
     if suffix_code:
         code += "\n" + suffix_code
 
-    print("input_host_path:", input_host_path)
+    #print("input_host_path:", input_host_path)
 
     result = run_auto_fix(code, 
                           dependencies=dependencies, 
@@ -320,23 +323,26 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
     
     return res
 
-
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+@parallel
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3, n_parallel=1):
 
     from IPython.display import display, Markdown, HTML
+    from ._utilities import markdown_to_html
+    
     # code generation and execution
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
     for n_a in range(n_attempts):
         dependencies = res.dependencies
-        print("len code (bef):", len(res.code))
+        code_before = res.code
+        #print("len code (bef):", len(res.code))
 
-        display(Markdown(f"# {n_a + 1}. Result"))
-        display(res)
+        #display(Markdown(f"# {n_a + 1}. Result"))
+        #display(res)
 
         # code inspection and feedback
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
 
-        display(HTML("<details><summary>Feedback</summary>" + feedback + "</details>"))
+        #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
 
         #if GOOD_CODE in feedback:
         #    res.feedback = feedback
@@ -345,7 +351,12 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         # incorporating feedback
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
-        print("len code (aft):", len(res.code))
+        #print("len code (aft):", len(res.code))
+
+        if res.code == code_before:
+            print("Code did not change. Stopping.")
+            break
+
 
         dependencies = res.dependencies
 

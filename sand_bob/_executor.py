@@ -302,6 +302,7 @@ class CodeExecutor:
                 result.files[str(os.path.join(display_output_container_path, file)).replace("\\", "/")] = open(os.path.join(display_output_host_path, file), "rb").read()
         
         from io import BytesIO
+        import warnings
 
         result.objects = {}
         for filename, content in result.files.items():
@@ -310,7 +311,11 @@ class CodeExecutor:
                 result.objects[filename] = imread(BytesIO(bytes(content)))
             elif file.endswith(".csv"):
                 import pandas as pd
-                result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
+                try:
+                    result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
+                except Exception as e:
+                    warnings.warn(f"Error reading CSV file {file}: {e}")
+                    result.objects[file] = None
             elif file.endswith(".json") or filename.endswith(".ipynb"):
                 import json
                 result.objects[file] = json.load(BytesIO(bytes(content)))
