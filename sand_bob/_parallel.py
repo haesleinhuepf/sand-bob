@@ -55,6 +55,9 @@ def parallel(func: Callable) -> Callable:
                             results[index] = future.result()
                         except Exception as exc:
                             print(f'Task {index} generated an exception: {exc}')
+                            # print the traceback
+                            import traceback
+                            print(traceback.format_exc())
                             results[index] = None
                     
                     return results
