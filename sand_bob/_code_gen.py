@@ -328,8 +328,11 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
-    
+    from ._statusdisplay import StatusDisplay
+
     # code generation and execution
+    status_display = StatusDisplay()
+    status_display.update(f"Generating code... (1/{n_attempts})")
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
     for n_a in range(n_attempts):
         dependencies = res.dependencies
@@ -340,6 +343,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(res)
 
         # code inspection and feedback
+        status_display.update(f"Generating feedback... ({n_a + 1}/{n_attempts})")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
 
         #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
@@ -349,6 +353,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #    break
 
         # incorporating feedback
+        status_display.update(f"Incorporating feedback... ({n_a + 1}/{n_attempts})")
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
         #print("len code (aft):", len(res.code))
@@ -361,6 +366,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         dependencies = res.dependencies
 
         code = res.code
+    status_display.update("")
     return res
 
 
