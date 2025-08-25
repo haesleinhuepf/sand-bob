@@ -338,14 +338,17 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     import time
 
     status_display = StatusDisplay()
-    status_display.update(f"Generating code... (attempt 1/{n_attempts})", 1/(n_attempts*3) * 100)
+    progress = 1
+    max_progress = (n_attempts-1)*2+1
+    status_display.update(f"Generating code... (attempt 1/{n_attempts})", progress / max_progress * 100)
 
     start_time = time.time()
 
     # code generation and execution
     former_result = None
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
-    for n_a in range(n_attempts):
+    n_a = 0
+    for n_a in range(n_attempts-1):
         res.former_result = former_result
         dependencies = res.dependencies
         code_before = res.code
@@ -355,7 +358,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(res)
 
         # code inspection and feedback
-        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})", ((n_a)*3 + 1) / (n_attempts*3) * 100)
+        progress += 1
+        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})", progress / max_progress * 100)
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
         res.feedback = feedback
 
@@ -366,7 +370,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #    break
 
         # incorporating feedback
-        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a+1}/{n_attempts})", ((n_a)*3 + 2) / (n_attempts*3) * 100)
+        progress += 1
+        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a+1}/{n_attempts})", progress / max_progress * 100)
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
         #print("len code (aft):", len(res.code))

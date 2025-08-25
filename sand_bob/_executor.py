@@ -106,7 +106,23 @@ class ExecutionResult:
                 border='1px solid #6f42c1'
             )
         )
-        self.code_button.style.button_color = '#e2d9f3'        
+        self.code_button.style.button_color = '#e2d9f3'
+        
+        # Add save notebook button if notebook file exists
+        self.save_notebook_button = None
+        self.save_notebook_output = None
+        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
+            self.save_notebook_button = widgets.Button(
+                description="💾 Save Notebook",
+                layout=widgets.Layout(
+                    width='auto', 
+                    margin='2px',
+                    border='1px solid #28a745'
+                )
+            )
+            self.save_notebook_button.style.button_color = '#d4edda'
+            self.save_notebook_output = widgets.Output()
+            self.save_notebook_button.on_click(self._save_notebook)
         
         # Create output widgets
         self.details_output = widgets.Output()
@@ -121,24 +137,25 @@ class ExecutionResult:
         self.code_button.on_click(self._toggle_code)
         
         # Create the main layout
+        button_list = [self.details_button, self.stdout_button, self.stderr_button, self.code_button]
+        output_list = [self.details_output, self.stdout_output, self.stderr_output, self.code_output]
+        
+        # Add save notebook button and output if they exist
+        if self.save_notebook_button:
+            button_list.append(self.save_notebook_button)
+            output_list.append(self.save_notebook_output)
+        
         self.widget = widgets.VBox([
-            widgets.HBox([
-                self.details_button,
-                self.stdout_button,
-                self.stderr_button,
-                self.code_button
-            ], layout=widgets.Layout(flex_flow='wrap', gap='5px')),
-            self.details_output,
-            self.stdout_output,
-            self.stderr_output,
-            self.code_output
-        ])
+            widgets.HBox(button_list, layout=widgets.Layout(flex_flow='wrap', gap='5px')),
+        ] + output_list)
                 
         # Initially hide all detail sections except output
         self.details_output.layout.display = 'none'
         self.stdout_output.layout.display = 'none'
         self.stderr_output.layout.display = 'none'
         self.code_output.layout.display = 'none'
+        if self.save_notebook_output:
+            self.save_notebook_output.layout.display = 'none'
 
     def _toggle_details(self, b):
         """Toggle the details section."""
@@ -264,6 +281,61 @@ class ExecutionResult:
                 display(HTML(f"<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
                 display(HTML("<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+
+    def _save_notebook(self, b):
+        """Save the executed notebook file and show a link to it."""
+        import os
+        import datetime
+        
+        # Toggle the output display
+        if self.save_notebook_output.layout.display == 'none':
+            self.save_notebook_output.layout.display = 'block'
+            self.save_notebook_button.description = "💾 Save Notebook ▼"
+            # Darker green when active
+            self.save_notebook_button.style.button_color = '#c3e6cb'
+            
+            with self.save_notebook_output:
+                self.save_notebook_output.clear_output(wait=True)
+                
+                try:
+                    # Get the notebook content from files
+                    notebook_content = self.files['/display_output/notebook_executed.ipynb']
+                    
+                    # Generate filename with timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"executed_notebook_{timestamp}.ipynb"
+                    
+                    # Get current working directory
+                    current_dir = os.getcwd()
+                    filepath = os.path.join(current_dir, filename)
+                    
+                    # Write the notebook file
+                    with open(filepath, 'wb') as f:
+                        f.write(notebook_content)
+                    
+                    success_html = f"""
+                    <div style='background: #d4edda; padding: 15px; border: 1px solid #28a745; border-radius: 4px; margin: 10px 0;'>
+                        <h4>✅ Notebook Saved Successfully</h4>
+                        <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
+                        <p><strong>Location:</strong> {current_dir}</p>
+                    </div>
+                    """
+                    display(HTML(success_html))
+                    
+                except Exception as e:
+                    # Show error message
+                    error_html = f"""
+                    <div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'>
+                        <h4>❌ Error Saving Notebook</h4>
+                        <p><strong>Error:</strong> {str(e)}</p>
+                    </div>
+                    """
+                    display(HTML(error_html))
+        else:
+            self.save_notebook_output.layout.display = 'none'
+            self.save_notebook_button.description = "💾 Save Notebook"
+            # Light green when inactive
+            self.save_notebook_button.style.button_color = '#d4edda'
 
     
 
