@@ -2,6 +2,8 @@
 
 A Python library for executing AI-generated code in Docker containers with automated issue detection and fixing.
 
+![](docs/counting_blobs.gif)
+
 ## Features
 
 - Python code generation using LLMs
