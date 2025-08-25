@@ -12,6 +12,13 @@ import docker
 from docker.errors import DockerException
 import subprocess
 
+import ipywidgets as widgets
+from IPython.display import display, HTML
+from typing import List, Optional, Dict
+from dataclasses import dataclass
+import base64
+from io import BytesIO
+
 @dataclass
 class ExecutionResult:
     """Result of code execution in a Docker container."""
@@ -31,11 +38,11 @@ class ExecutionResult:
     final_result: Optional[str] = None
 
     def _repr_html_(self):
-        from IPython.display import display
+        from IPython.display import display, HTML
         import pandas as pd
         from io import BytesIO
         import base64
-
+        
         parsed_output = ""
         if self.outputs is not None:
             for output in self.outputs:
@@ -46,37 +53,231 @@ class ExecutionResult:
                 else:
                     parsed_output += f"<pre>{output['data']}</pre>"
 
-        #print(parsed_output)
+        return parsed_output
 
-        additional_html = ""
-        if self.files is not None and len(self.files) > 0:
-            additional_html += "<li>Files:<ul>"
-            for file, content in self.files.items():
-                additional_html += f"<li>{file}</li>"
-            additional_html += "</ul></li>"
-        if self.n_attempts is not None:
-            additional_html += f"<li>Number of attempts:\n{self.n_attempts}</li>"
-        if self.result_check_ok is not None:
-            additional_html += f"<li>Result check ok:\n{self.result_check_ok}</li>"
-        if self.traceback is not None:
-            additional_html += "<li>Traceback:\n<pre>{self.traceback}</pre></li>"
+    #def __post_init__(self):
+    #    """Initialize the widget interface after dataclass initialization."""
+    #    self._create_widget()
 
-        return f"""
-        <div>
-            {parsed_output}
-            <details><summary>Details</summary>
-            <ul>
-            <li><details><summary>StdOut ({len(self.stdout)})</summary><pre>{self.stdout}</pre></details></li>
-            <li><details><summary>StdErr ({len(self.stderr)})</summary><pre>{self.stderr}</pre></details></li>
-            <li>Dependencies:\n{", ".join(self.dependencies)}</li>
-            <li>Exit Code:\n{self.exit_code}</li>
-            {additional_html}
-            <li>Execution Time:\n{self.execution_time}</li>
-            <li><details><summary>Code</summary><pre>{self.code}<pre></details></li>
-            </ul>
-            </details>
-        </div>
-        """
+    def _create_widget(self):
+        """Create the main widget interface."""        
+        # Create collapsible sections
+        self.details_button = widgets.Button(
+            description="📋 Details",
+            button_style='info',
+            layout=widgets.Layout(width='auto', margin='2px')
+        )
+        
+        self.stdout_button = widgets.Button(
+            description=f"📤 StdOut ({len(self.stdout)})",
+            button_style='success',
+            layout=widgets.Layout(width='auto', margin='2px')
+        )
+        
+        self.stderr_button = widgets.Button(
+            description=f"📥 StdErr ({len(self.stderr)})",
+            button_style='warning',
+            layout=widgets.Layout(width='auto', margin='2px')
+        )
+        
+        self.code_button = widgets.Button(
+            description="💻 Code",
+            button_style='primary',
+            layout=widgets.Layout(width='auto', margin='2px')
+        )
+        
+        self.output_button = widgets.Button(
+            description="📊 Output",
+            button_style='info',
+            layout=widgets.Layout(width='auto', margin='2px')
+        )
+        
+        # Create output widgets
+        self.details_output = widgets.Output()
+        self.stdout_output = widgets.Output()
+        self.stderr_output = widgets.Output()
+        self.code_output = widgets.Output()
+        self.output_display = widgets.Output()
+        
+        # Connect button clicks
+        self.details_button.on_click(self._toggle_details)
+        self.stdout_button.on_click(self._toggle_stdout)
+        self.stderr_button.on_click(self._toggle_stderr)
+        self.code_button.on_click(self._toggle_code)
+        self.output_button.on_click(self._toggle_output)
+        
+        # Create the main layout
+        self.widget = widgets.VBox([
+            widgets.HBox([
+                self.details_button,
+                self.stdout_button,
+                self.stderr_button,
+                self.code_button,
+                self.output_button
+            ], layout=widgets.Layout(flex_flow='wrap', gap='5px')),
+            self.details_output,
+            self.stdout_output,
+            self.stderr_output,
+            self.code_output,
+            self.output_display
+        ])
+                
+        # Initially hide all detail sections except output
+        self.details_output.layout.display = 'none'
+        self.stdout_output.layout.display = 'none'
+        self.stderr_output.layout.display = 'none'
+        self.code_output.layout.display = 'none'
+        self.output_display.layout.display = 'block'  # Show output by default
+        
+        # Populate the output display initially
+        self._populate_output()
+
+    def _toggle_details(self, b):
+        """Toggle the details section."""
+        if self.details_output.layout.display == 'none':
+            self.details_output.layout.display = 'block'
+            self._populate_details()
+            self.details_button.description = "📋 Details ▼"
+        else:
+            self.details_output.layout.display = 'none'
+            self.details_button.description = "📋 Details"
+
+    def _toggle_stdout(self, b):
+        """Toggle the stdout section."""
+        if self.stdout_output.layout.display == 'none':
+            self.stdout_output.layout.display = 'block'
+            self._populate_stdout()
+            self.stdout_button.description = f"📤 StdOut ({len(self.stdout)}) ▼"
+        else:
+            self.stdout_output.layout.display = 'none'
+            self.stdout_button.description = f"📤 StdOut ({len(self.stdout)})"
+
+    def _toggle_stderr(self, b):
+        """Toggle the stderr section."""
+        if self.stderr_output.layout.display == 'none':
+            self.stderr_output.layout.display = 'block'
+            self._populate_stderr()
+            self.stderr_button.description = f"📥 StdErr ({len(self.stderr)}) ▼"
+        else:
+            self.stderr_output.layout.display = 'none'
+            self.stderr_button.description = f"📥 StdErr ({len(self.stderr)})"
+
+    def _toggle_code(self, b):
+        """Toggle the code section."""
+        if self.code_output.layout.display == 'none':
+            self.code_output.layout.display = 'block'
+            self._populate_code()
+            self.code_button.description = "💻 Code ▼"
+        else:
+            self.code_output.layout.display = 'none'
+            self.code_button.description = "💻 Code"
+
+    def _toggle_output(self, b):
+        """Toggle the output section."""
+        if self.output_display.layout.display == 'none':
+            self.output_display.layout.display = 'block'
+            self._populate_output()
+            self.output_button.description = "📊 Output ▼"
+        else:
+            self.output_display.layout.display = 'none'
+            self.output_button.description = "📊 Output"
+
+    def _populate_details(self):
+        """Populate the details section."""
+        with self.details_output:
+            self.details_output.clear_output(wait=True)
+            
+            details_html = "<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'>"
+            details_html += "<h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
+            
+            # Basic info
+            details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
+            details_html += f"<li><strong>Execution Time:</strong> {self.execution_time:.2f}s</li>"
+            
+            if self.container_id:
+                details_html += f"<li><strong>Container ID:</strong> {self.container_id}</li>"
+            
+            if self.dependencies:
+                details_html += f"<li><strong>Dependencies:</strong> {', '.join(self.dependencies)}</li>"
+            
+            if self.files and len(self.files) > 0:
+                details_html += "<li><strong>Files:</strong><ul>"
+                for file, content in self.files.items():
+                    details_html += f"<li>{file}</li>"
+                details_html += "</ul></li>"
+            
+            if self.n_attempts is not None:
+                details_html += f"<li><strong>Number of attempts:</strong> {self.n_attempts}</li>"
+            
+            if self.result_check_ok is not None:
+                status_color = 'green' if self.result_check_ok else 'red'
+                status_text = '✓ OK' if self.result_check_ok else '✗ Failed'
+                details_html += f"<li><strong>Result check:</strong> <span style='color: {status_color};'>{status_text}</span></li>"
+            
+            if self.traceback:
+                details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.traceback}</pre></li>"
+            
+            details_html += "</ul></div>"
+            display(HTML(details_html))
+
+    def _populate_stdout(self):
+        """Populate the stdout section."""
+        with self.stdout_output:
+            self.stdout_output.clear_output(wait=True)
+            if self.stdout:
+                display(HTML(f"<div style='background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
+            else:
+                display(HTML("<div style='background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Output</h4><p><em>No output</em></p></div>"))
+
+    def _populate_stderr(self):
+        """Populate the stderr section."""
+        with self.stderr_output:
+            self.stderr_output.clear_output(wait=True)
+            if self.stderr:
+                display(HTML(f"<div style='background: #f8d7da; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
+            else:
+                display(HTML("<div style='background: #f8d7da; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
+
+    def _populate_code(self):
+        """Populate the code section."""
+        with self.code_output:
+            self.code_output.clear_output(wait=True)
+            if self.code:
+                display(HTML(f"<div style='background: #e2e3e5; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
+            else:
+                display(HTML("<div style='background: #e2e3e5; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+
+    def _populate_output(self):
+        """Populate the output section using the parsed outputs."""
+        with self.output_display:
+            self.output_display.clear_output(wait=True)
+            
+            parsed_output = ""
+            if self.outputs is not None:
+                for output in self.outputs:
+                    if output["type"] == "image/png":
+                        parsed_output += f"<p><img src='data:image/png;base64,{output['data']}'/></p>"
+                    elif output["type"] == "text/plain":
+                        parsed_output += f"<pre>{output['data']}</pre>"
+                    else:
+                        parsed_output += f"<pre>{output['data']}</pre>"
+            
+            if parsed_output:
+                display(HTML(f"<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Execution Outputs</h4>{parsed_output}</div>"))
+            else:
+                display(HTML("<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Execution Outputs</h4><p><em>No outputs available</em></p></div>"))
+
+    def display(self):
+        """Display the widget."""
+        display(self._repr_html_())
+        display(self.widget)
+
+
+
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        """MIME bundle representation for Jupyter notebooks."""
+        self._create_widget()
+        return self.widget._repr_mimebundle_(include=include, exclude=exclude)
 
 
 def execute(code: str, dependencies: List[str] = [], 
