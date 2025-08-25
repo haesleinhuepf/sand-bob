@@ -42,6 +42,9 @@ class ExecutionResult:
         import pandas as pd
         from io import BytesIO
         import base64
+
+        self._create_widget()
+        display(self.widget)
         
         parsed_output = ""
         if self.outputs is not None:
@@ -101,32 +104,19 @@ class ExecutionResult:
                 border='1px solid #6f42c1'
             )
         )
-        self.code_button.style.button_color = '#e2d9f3'
-        
-        self.output_button = widgets.Button(
-            description="📊 Output ▼",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #6c757d'
-            )
-        )
-        self.output_button.style.button_color = '#e2e3e5'
-        
+        self.code_button.style.button_color = '#e2d9f3'        
         
         # Create output widgets
         self.details_output = widgets.Output()
         self.stdout_output = widgets.Output()
         self.stderr_output = widgets.Output()
         self.code_output = widgets.Output()
-        self.output_display = widgets.Output()
         
         # Connect button clicks
         self.details_button.on_click(self._toggle_details)
         self.stdout_button.on_click(self._toggle_stdout)
         self.stderr_button.on_click(self._toggle_stderr)
         self.code_button.on_click(self._toggle_code)
-        self.output_button.on_click(self._toggle_output)
         
         # Create the main layout
         self.widget = widgets.VBox([
@@ -134,14 +124,12 @@ class ExecutionResult:
                 self.details_button,
                 self.stdout_button,
                 self.stderr_button,
-                self.code_button,
-                self.output_button
+                self.code_button
             ], layout=widgets.Layout(flex_flow='wrap', gap='5px')),
             self.details_output,
             self.stdout_output,
             self.stderr_output,
-            self.code_output,
-            self.output_display
+            self.code_output
         ])
                 
         # Initially hide all detail sections except output
@@ -149,10 +137,6 @@ class ExecutionResult:
         self.stdout_output.layout.display = 'none'
         self.stderr_output.layout.display = 'none'
         self.code_output.layout.display = 'none'
-        self.output_display.layout.display = 'block'  # Show output by default
-        
-        # Populate the output display initially
-        self._populate_output()
 
     def _toggle_details(self, b):
         """Toggle the details section."""
@@ -210,19 +194,6 @@ class ExecutionResult:
             # Light purple when inactive
             self.code_button.style.button_color = '#e2d9f3'
 
-    def _toggle_output(self, b):
-        """Toggle the output section."""
-        if self.output_display.layout.display == 'none':
-            self.output_display.layout.display = 'block'
-            self._populate_output()
-            self.output_button.description = "📊 Output ▼"
-            # Darker grey when active
-            self.output_button.style.button_color = '#c6c8ca'
-        else:
-            self.output_display.layout.display = 'none'
-            self.output_button.description = "📊 Output"
-            # Light grey when inactive
-            self.output_button.style.button_color = '#e2e3e5'
 
     def _populate_details(self):
         """Populate the details section."""
@@ -289,38 +260,7 @@ class ExecutionResult:
             else:
                 display(HTML("<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
 
-    def _populate_output(self):
-        """Populate the output section using the parsed outputs."""
-        with self.output_display:
-            self.output_display.clear_output(wait=True)
-            
-            parsed_output = ""
-            if self.outputs is not None:
-                for output in self.outputs:
-                    if output["type"] == "image/png":
-                        parsed_output += f"<p><img src='data:image/png;base64,{output['data']}'/></p>"
-                    elif output["type"] == "text/plain":
-                        parsed_output += f"<pre>{output['data']}</pre>"
-                    else:
-                        parsed_output += f"<pre>{output['data']}</pre>"
-            
-            if parsed_output:
-                display(HTML(f"<div style='background: white; padding: 15px; border: 1px solid #6c757d; border-radius: 4px; margin: 10px 0;'><h4>Execution Outputs</h4>{parsed_output}</div>"))
-            else:
-                display(HTML("<div style='background: white; padding: 15px; border: 1px solid #6c757d; border-radius: 4px; margin: 10px 0;'><h4>Execution Outputs</h4><p><em>No outputs available</em></p></div>"))
-
-    def display(self):
-        """Display the widget."""
-        display(self._repr_html_())
-        display(self.widget)
-
-
-
-    def _repr_mimebundle_(self, include=None, exclude=None):
-        """MIME bundle representation for Jupyter notebooks."""
-        self._create_widget()
-        return self.widget._repr_mimebundle_(include=include, exclude=exclude)
-
+    
 
 def execute(code: str, dependencies: List[str] = [], 
             input_host_path: Optional[str] = None, 
