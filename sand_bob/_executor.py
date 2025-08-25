@@ -61,36 +61,58 @@ class ExecutionResult:
 
     def _create_widget(self):
         """Create the main widget interface."""        
-        # Create collapsible sections
+        # Create collapsible sections with custom styling
         self.details_button = widgets.Button(
             description="📋 Details",
-            button_style='info',
-            layout=widgets.Layout(width='auto', margin='2px')
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #28a745'
+            )
         )
+        self.details_button.style.button_color = '#d4edda'
         
         self.stdout_button = widgets.Button(
             description=f"📤 StdOut ({len(self.stdout)})",
-            button_style='success',
-            layout=widgets.Layout(width='auto', margin='2px')
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #17a2b8'
+            )
         )
+        self.stdout_button.style.button_color = '#d1ecf1'
         
         self.stderr_button = widgets.Button(
             description=f"📥 StdErr ({len(self.stderr)})",
-            button_style='warning',
-            layout=widgets.Layout(width='auto', margin='2px')
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #dc3545'
+            )
         )
+
+        self.stderr_button.style.button_color = '#f8d7da'
         
         self.code_button = widgets.Button(
             description="💻 Code",
-            button_style='primary',
-            layout=widgets.Layout(width='auto', margin='2px')
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #6f42c1'
+            )
         )
+        self.code_button.style.button_color = '#e2d9f3'
         
         self.output_button = widgets.Button(
-            description="📊 Output",
-            button_style='info',
-            layout=widgets.Layout(width='auto', margin='2px')
+            description="📊 Output ▼",
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #6c757d'
+            )
         )
+        self.output_button.style.button_color = '#e2e3e5'
+        
         
         # Create output widgets
         self.details_output = widgets.Output()
@@ -138,9 +160,13 @@ class ExecutionResult:
             self.details_output.layout.display = 'block'
             self._populate_details()
             self.details_button.description = "📋 Details ▼"
+            # Darker green when active
+            self.details_button.style.button_color = '#c3e6cb'
         else:
             self.details_output.layout.display = 'none'
             self.details_button.description = "📋 Details"
+            # Light green when inactive
+            self.details_button.style.button_color = '#d4edda'
 
     def _toggle_stdout(self, b):
         """Toggle the stdout section."""
@@ -148,9 +174,13 @@ class ExecutionResult:
             self.stdout_output.layout.display = 'block'
             self._populate_stdout()
             self.stdout_button.description = f"📤 StdOut ({len(self.stdout)}) ▼"
+            # Darker blue when active
+            self.stdout_button.style.button_color = '#bee5eb'
         else:
             self.stdout_output.layout.display = 'none'
             self.stdout_button.description = f"📤 StdOut ({len(self.stdout)})"
+            # Light blue when inactive
+            self.stdout_button.style.button_color = '#d1ecf1'
 
     def _toggle_stderr(self, b):
         """Toggle the stderr section."""
@@ -158,9 +188,13 @@ class ExecutionResult:
             self.stderr_output.layout.display = 'block'
             self._populate_stderr()
             self.stderr_button.description = f"📥 StdErr ({len(self.stderr)}) ▼"
+            # Darker red when active
+            self.stderr_button.style.button_color = '#f5c6cb'
         else:
             self.stderr_output.layout.display = 'none'
             self.stderr_button.description = f"📥 StdErr ({len(self.stderr)})"
+            # Light red when inactive
+            self.stderr_button.style.button_color = '#f8d7da'
 
     def _toggle_code(self, b):
         """Toggle the code section."""
@@ -168,9 +202,13 @@ class ExecutionResult:
             self.code_output.layout.display = 'block'
             self._populate_code()
             self.code_button.description = "💻 Code ▼"
+            # Darker purple when active
+            self.code_button.style.button_color = '#d4c4f7'
         else:
             self.code_output.layout.display = 'none'
             self.code_button.description = "💻 Code"
+            # Light purple when inactive
+            self.code_button.style.button_color = '#e2d9f3'
 
     def _toggle_output(self, b):
         """Toggle the output section."""
@@ -178,16 +216,20 @@ class ExecutionResult:
             self.output_display.layout.display = 'block'
             self._populate_output()
             self.output_button.description = "📊 Output ▼"
+            # Darker grey when active
+            self.output_button.style.button_color = '#c6c8ca'
         else:
             self.output_display.layout.display = 'none'
             self.output_button.description = "📊 Output"
+            # Light grey when inactive
+            self.output_button.style.button_color = '#e2e3e5'
 
     def _populate_details(self):
         """Populate the details section."""
         with self.details_output:
             self.details_output.clear_output(wait=True)
             
-            details_html = "<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'>"
+            details_html = "<div style='background: #d4edda; padding: 15px; border: 1px solid #28a745; border-radius: 4px; margin: 10px 0;'>"
             details_html += "<h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
             
             # Basic info
@@ -225,27 +267,27 @@ class ExecutionResult:
         with self.stdout_output:
             self.stdout_output.clear_output(wait=True)
             if self.stdout:
-                display(HTML(f"<div style='background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
+                display(HTML(f"<div style='background: #d1ecf1; padding: 15px; border: 1px solid #17a2b8; border-radius: 4px; margin: 10px 0;'><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
             else:
-                display(HTML("<div style='background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Output</h4><p><em>No output</em></p></div>"))
+                display(HTML("<div style='background: #d1ecf1; padding: 15px; border: 1px solid #17a2b8; border-radius: 4px; margin: 10px 0;'><h4>Standard Output</h4><p><em>No output</em></p></div>"))
 
     def _populate_stderr(self):
         """Populate the stderr section."""
         with self.stderr_output:
             self.stderr_output.clear_output(wait=True)
             if self.stderr:
-                display(HTML(f"<div style='background: #f8d7da; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
+                display(HTML(f"<div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
             else:
-                display(HTML("<div style='background: #f8d7da; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
+                display(HTML("<div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
 
     def _populate_code(self):
         """Populate the code section."""
         with self.code_output:
             self.code_output.clear_output(wait=True)
             if self.code:
-                display(HTML(f"<div style='background: #e2e3e5; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
+                display(HTML(f"<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
-                display(HTML("<div style='background: #e2e3e5; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+                display(HTML("<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
 
     def _populate_output(self):
         """Populate the output section using the parsed outputs."""
@@ -263,9 +305,9 @@ class ExecutionResult:
                         parsed_output += f"<pre>{output['data']}</pre>"
             
             if parsed_output:
-                display(HTML(f"<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Execution Outputs</h4>{parsed_output}</div>"))
+                display(HTML(f"<div style='background: white; padding: 15px; border: 1px solid #6c757d; border-radius: 4px; margin: 10px 0;'><h4>Execution Outputs</h4>{parsed_output}</div>"))
             else:
-                display(HTML("<div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'><h4>Execution Outputs</h4><p><em>No outputs available</em></p></div>"))
+                display(HTML("<div style='background: white; padding: 15px; border: 1px solid #6c757d; border-radius: 4px; margin: 10px 0;'><h4>Execution Outputs</h4><p><em>No outputs available</em></p></div>"))
 
     def display(self):
         """Display the widget."""
