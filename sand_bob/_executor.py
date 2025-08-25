@@ -36,6 +36,8 @@ class ExecutionResult:
     outputs: Optional[List[Dict]] = None
     feedback: Optional[str] = None
     final_result: Optional[str] = None
+    total_time: Optional[float] = None
+    former_result: Optional["ExecutionResult"] = None
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -206,6 +208,9 @@ class ExecutionResult:
             # Basic info
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
             details_html += f"<li><strong>Execution Time:</strong> {self.execution_time:.2f}s</li>"
+
+            if self.total_time is not None:
+                details_html += f"<li><strong>Total Time:</strong> {self.total_time:.2f}s</li>"
             
             if self.container_id:
                 details_html += f"<li><strong>Container ID:</strong> {self.container_id}</li>"

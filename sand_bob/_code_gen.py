@@ -136,12 +136,17 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
     from sand_bob._utilities import is_notebook
     from IPython.display import display
     original_dependencies = dependencies.copy()
+    former_result = None
 
     for n_a in range(n_attempts):
         if is_notebook(code):
             result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        
+        result.former_result = former_result
+        former_result = result
+
         if "Traceback" in result.stdout:
             #display(result)
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
@@ -329,12 +334,18 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
     from ._statusdisplay import StatusDisplay
+    import time
+
+    status_display = StatusDisplay()
+    status_display.update(f"Generating code... (attempt 1/{n_attempts})")
+
+    start_time = time.time()
 
     # code generation and execution
-    status_display = StatusDisplay()
-    status_display.update(f"Generating code... (1/{n_attempts})")
+    former_result = None
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
     for n_a in range(n_attempts):
+        res.former_result = former_result
         dependencies = res.dependencies
         code_before = res.code
         #print("len code (bef):", len(res.code))
@@ -343,8 +354,9 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(res)
 
         # code inspection and feedback
-        status_display.update(f"Generating feedback... ({n_a + 1}/{n_attempts})")
+        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
+        res.feedback = feedback
 
         #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
 
@@ -353,7 +365,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #    break
 
         # incorporating feedback
-        status_display.update(f"Incorporating feedback... ({n_a + 1}/{n_attempts})")
+        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a + 1}/{n_attempts})")
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
         #print("len code (aft):", len(res.code))
@@ -365,8 +377,13 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         dependencies = res.dependencies
 
+        former_result = res
+
         code = res.code
     status_display.update("")
+    res.total_time = time.time() - start_time
+    res.n_attempts = n_a + 1
+
     return res
 
 

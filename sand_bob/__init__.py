@@ -1,13 +1,14 @@
 """
-Sand-Bob - A Python library for executing code in Docker containers.
+Sand-Bob - A Python library for executing AI-generated code in Docker containers with automated issue detection and fixing.
 """
 from ._executor import ExecutionResult, execute, execute_notebook
+from ._code_gen import generate_and_optimize_code as generate_code
 from ._bob import bob, initialize
 
 from ._config import config
 
 __version__ = "0.1.0"
-__all__ = ["ExecutionResult", "ExecutionResultWidget", "to_widget", "execute", "execute_notebook", "config"] 
+__all__ = ["ExecutionResult", "execute", "config", "generate_code"] 
 
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
                           "scikit-learn", "scikit-image", "tqdm",
