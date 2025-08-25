@@ -19,6 +19,7 @@ Assume your code will be executed in a Jupyter notebook cell.
   * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
   * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
   * If the task is to generate a plot, ENSURE to display the plot.
+* Keep the code short and concise.
 """
 
 def system_prompt_code_feedback(display_output_path):
@@ -337,7 +338,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     import time
 
     status_display = StatusDisplay()
-    status_display.update(f"Generating code... (attempt 1/{n_attempts})")
+    status_display.update(f"Generating code... (attempt 1/{n_attempts})", 1/(n_attempts*3) * 100)
 
     start_time = time.time()
 
@@ -354,7 +355,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(res)
 
         # code inspection and feedback
-        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})")
+        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})", ((n_a)*3 + 1) / (n_attempts*3) * 100)
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
         res.feedback = feedback
 
@@ -365,7 +366,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #    break
 
         # incorporating feedback
-        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a + 1}/{n_attempts})")
+        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a+1}/{n_attempts})", ((n_a)*3 + 2) / (n_attempts*3) * 100)
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
         #print("len code (aft):", len(res.code))
