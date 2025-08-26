@@ -19,6 +19,9 @@ Assume your code will be executed in a Jupyter notebook cell.
   * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
   * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
   * If the task is to generate a plot, ENSURE to display the plot.
+  * If the task is to generate a text or a string, ENSURE to write the text or string to a .txt file.
+  * If the task is to generate a table, ENSURE to write the table to a .csv file.
+  * If the task is to generate a number, list, array or dictionary, ENSURE to write the result to a .json file.
 * Keep the code short and concise.
 """
 
@@ -339,7 +342,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     status_display = StatusDisplay()
     progress = 1
-    max_progress = (n_attempts-1)*2+1
+    max_progress = n_attempts*2
     status_display.update(f"Generating code... (attempt 1/{n_attempts})", progress / max_progress * 100)
 
     start_time = time.time()
