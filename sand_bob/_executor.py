@@ -569,20 +569,23 @@ class CodeExecutor:
             if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
                 from skimage.io import imread
                 result.objects[filename] = imread(BytesIO(bytes(content)))
-            elif file.endswith(".csv"):
+            elif filename.endswith(".csv"):
                 import pandas as pd
                 try:
-                    result.objects[file] = pd.read_csv(BytesIO(bytes(content)))
+                    result.objects[filename] = pd.read_csv(BytesIO(bytes(content)))
                 except Exception as e:
-                    warnings.warn(f"Error reading CSV file {file}: {e}")
-                    result.objects[file] = None
-            elif file.endswith(".json") or filename.endswith(".ipynb"):
+                    warnings.warn(f"Error reading CSV file {filename}: {e} \n\n {str(content)}")
+                    result.objects[filename] = None
+            elif filename.endswith(".json") or filename.endswith(".ipynb"):
                 import json
-                result.objects[file] = json.load(BytesIO(bytes(content)))
-            elif file.endswith(".txt") or filename.endswith(".svg"):
-                result.objects[file] = content.decode("utf-8")
+                result.objects[filename] = json.load(BytesIO(bytes(content)))
+            elif filename.endswith(".jsonl"):
+                import json
+                result.objects[filename] = [json.loads(line) for line in content.decode("utf-8").splitlines()]
+            elif filename.endswith(".txt") or filename.endswith(".svg"):
+                result.objects[filename] = content.decode("utf-8")
             else:
-                result.objects[file] = content
+                result.objects[filename] = content
 
         result.outputs = []
         if "notebook_executed.ipynb" in result.objects:
