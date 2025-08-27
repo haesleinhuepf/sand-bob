@@ -38,6 +38,7 @@ class ExecutionResult:
     final_result: Optional[str] = None
     total_time: Optional[float] = None
     former_result: Optional["ExecutionResult"] = None
+    render_inline: bool = True
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -45,8 +46,15 @@ class ExecutionResult:
         from io import BytesIO
         import base64
 
+        if not self.render_inline:
+            return ""
+
         self._create_widget()
         display(self.widget)
+
+        return self._html_output()
+    
+    def _html_output(self):
         
         parsed_output = ""
         if self.outputs is not None:
@@ -108,6 +116,16 @@ class ExecutionResult:
         )
         self.code_button.style.button_color = '#e2d9f3'
         
+        self.output_button = widgets.Button(
+            description="📊 Output",
+            layout=widgets.Layout(
+                width='auto', 
+                margin='2px',
+                border='1px solid #fd7e14'
+            )
+        )
+        self.output_button.style.button_color = '#ffeaa7'
+        
         # Add save notebook button if notebook file exists
         self.save_notebook_button = None
         self.save_notebook_output = None
@@ -129,16 +147,18 @@ class ExecutionResult:
         self.stdout_output = widgets.Output()
         self.stderr_output = widgets.Output()
         self.code_output = widgets.Output()
+        self.output_display = widgets.Output()
         
         # Connect button clicks
         self.details_button.on_click(self._toggle_details)
         self.stdout_button.on_click(self._toggle_stdout)
         self.stderr_button.on_click(self._toggle_stderr)
         self.code_button.on_click(self._toggle_code)
+        self.output_button.on_click(self._toggle_output)
         
         # Create the main layout
-        button_list = [self.details_button, self.stdout_button, self.stderr_button, self.code_button]
-        output_list = [self.details_output, self.stdout_output, self.stderr_output, self.code_output]
+        button_list = [self.details_button, self.stdout_button, self.stderr_button, self.code_button, self.output_button]
+        output_list = [self.details_output, self.stdout_output, self.stderr_output, self.code_output, self.output_display]
         
         # Add save notebook button and output if they exist
         if self.save_notebook_button:
@@ -154,6 +174,7 @@ class ExecutionResult:
         self.stdout_output.layout.display = 'none'
         self.stderr_output.layout.display = 'none'
         self.code_output.layout.display = 'none'
+        self.output_display.layout.display = 'none'
         if self.save_notebook_output:
             self.save_notebook_output.layout.display = 'none'
 
@@ -212,6 +233,20 @@ class ExecutionResult:
             self.code_button.description = "💻 Code"
             # Light purple when inactive
             self.code_button.style.button_color = '#e2d9f3'
+
+    def _toggle_output(self, b):
+        """Toggle the output section."""
+        if self.output_display.layout.display == 'none':
+            self.output_display.layout.display = 'block'
+            self._populate_output()
+            self.output_button.description = "📊 Output ▼"
+            # Darker orange when active
+            self.output_button.style.button_color = '#fdcb6e'
+        else:
+            self.output_display.layout.display = 'none'
+            self.output_button.description = "📊 Output"
+            # Light orange when inactive
+            self.output_button.style.button_color = '#ffeaa7'
 
 
     def _populate_details(self):
@@ -282,6 +317,20 @@ class ExecutionResult:
             else:
                 display(HTML("<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
 
+    def _populate_output(self):
+        """Populate the output section."""
+        with self.output_display:
+            self.output_display.clear_output(wait=True)
+            
+
+
+            output_html = "<div style='background: #ffeaa7; padding: 15px; border: 1px solid #fd7e14; border-radius: 4px; margin: 10px 0;'><h4>Execution Output</h4>"
+            
+            output_html += self._html_output()
+            
+            output_html += "</div>"
+            display(HTML(output_html))
+            
     def _save_notebook(self, b):
         """Save the executed notebook file and show a link to it."""
         import os
@@ -557,14 +606,20 @@ class CodeExecutor:
 
             # add files in output directory to result
             result.files = {}
-            for file in os.listdir(display_output_host_path):
-                #print("file", file)
-                result.files[str(os.path.join(display_output_container_path, file)).replace("\\", "/")] = open(os.path.join(display_output_host_path, file), "rb").read()
+            try:
+                for file in os.listdir(display_output_host_path):
+                    #print("file", file)
+                    result.files[str(os.path.join(display_output_container_path, file)).replace("\\", "/")] = open(os.path.join(display_output_host_path, file), "rb").read()
+            except Exception as e:
+                print(f"Error reading files in display output directory: {e}")
+                result.files = {}
         
         from io import BytesIO
         import warnings
 
         result.objects = {}
+        result.final_result = None
+        
         for filename, content in result.files.items():
             if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".gif"):
                 from skimage.io import imread
@@ -575,10 +630,14 @@ class CodeExecutor:
                     result.objects[filename] = pd.read_csv(BytesIO(bytes(content)))
                 except Exception as e:
                     warnings.warn(f"Error reading CSV file {filename}: {e} \n\n {str(content)}")
-                    result.objects[filename] = None
+                    result.objects[filename] = content
             elif filename.endswith(".json") or filename.endswith(".ipynb"):
                 import json
-                result.objects[filename] = json.load(BytesIO(bytes(content)))
+                try:
+                    result.objects[filename] = json.load(BytesIO(bytes(content)))
+                except Exception as e:
+                    warnings.warn(f"Error reading JSON file {filename}: {e} \n\n {str(content)}")
+                    result.objects[filename] = content
             elif filename.endswith(".jsonl"):
                 import json
                 result.objects[filename] = [json.loads(line) for line in content.decode("utf-8").splitlines()]
@@ -587,16 +646,20 @@ class CodeExecutor:
             else:
                 result.objects[filename] = content
 
-        result.outputs = []
-        if "notebook_executed.ipynb" in result.objects:
-            # Try to copy the executed notebook from the container
-            notebook_json = None
+            if "display_output/final_result" in filename:
+                result.final_result = result.objects[filename]
 
-            # Get the executed notebook from the container
+        notebook_json = None
+
+        result.outputs = []
+        if "/display_output/notebook_executed.ipynb" in result.objects:
+            notebook_json = result.objects["/display_output/notebook_executed.ipynb"]
+        elif "notebook_executed.ipynb" in result.objects:
             notebook_json = result.objects["notebook_executed.ipynb"]
 
-            json.dump(notebook_json, open("test.ipynb", "w"))
+            #json.dump(notebook_json, open("test.ipynb", "w"))
 
+        if notebook_json is not None:
             #print("notebook_json", notebook_json)
 
             if notebook_json is not None:
@@ -650,7 +713,9 @@ class CodeExecutor:
                 
                 # Store the outputs in the result
                 result.outputs = outputs
-                result.final_result = str(outputs[-1]["data"]).split("\n")[-1]
+
+                if result.final_result is None:
+                    result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
 
         
         return result
@@ -833,3 +898,93 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with cleanup."""
         self.cleanup() 
+
+class ExecutionResultList:
+    """
+    A GUI class that represents a list of ExecutionResult objects with tabs.
+    Each tab represents one ExecutionResult, and clicking a tab shows that result.
+    """
+    
+    def __init__(self, results: List[ExecutionResult], tab_names: Optional[List[str]] = None):
+        """
+        Initialize the ExecutionResultList with a list of ExecutionResult objects.
+        
+        Args:
+            results: List of ExecutionResult objects to display
+            tab_names: Optional list of custom tab names. If not provided, 
+                      tabs will be named "Result 1", "Result 2", etc.
+        """
+        self.results = results
+        self.tab_names = tab_names or [f"Result {i+1}" for i in range(len(results))]
+        
+        # Ensure we have the same number of tab names as results
+        if len(self.tab_names) != len(self.results):
+            self.tab_names = [f"Result {i+1}" for i in range(len(results))]
+        
+        # Create the tabbed interface
+        self._create_tabbed_interface()
+    
+    def _create_tabbed_interface(self):
+        """Create the tabbed widget interface."""
+        # Create tab children (each tab will contain one ExecutionResult)
+        tab_children = []
+        
+        for i, result in enumerate(self.results):
+            # Set render_inline to False to prevent automatic display
+            result.render_inline = False
+            
+            # Create the widget for this result
+            result._create_widget()
+            
+            # Combine header and result widget
+            tab_content = result.widget
+            tab_children.append(tab_content)
+        
+        # Create the tab widget
+        self.tab_widget = widgets.Tab()
+        self.tab_widget.children = tab_children
+        
+        # Set tab titles
+        for i, name in enumerate(self.tab_names):
+            self.tab_widget.set_title(i, name)
+        
+        # Add some styling to the tab widget
+        self.tab_widget.layout = widgets.Layout(
+            width='100%',
+            height='auto',
+            border='1px solid #ddd',
+            padding='10px'
+        )
+    
+    def display(self):
+        """Display the tabbed interface."""
+        display(self.tab_widget)
+    
+    def _repr_html_(self):
+        """Return HTML representation for Jupyter display."""
+        self.display()
+        return ""
+    
+    def __len__(self):
+        """Return the number of results."""
+        return len(self.results)
+    
+    def __getitem__(self, index):
+        """Get a result by index."""
+        return self.results[index]
+    
+    def __iter__(self):
+        """Iterate over results."""
+        return iter(self.results)
+    
+    def append(self, result: ExecutionResult, tab_name: Optional[str] = None):
+        """Add a new result to the list."""
+        self.results.append(result)
+        
+        if tab_name is None:
+            tab_name = f"Result {len(self.results)}"
+        
+        self.tab_names.append(tab_name)
+        
+        # Recreate the tabbed interface with the new result
+        self._create_tabbed_interface() 

@@ -3,7 +3,7 @@ from ._parallel import parallel
 
 GOOD_CODE = "Overall the code looks good."
 
-def system_prompt_code_generation():
+def system_prompt_code_generation(display_output_path):
     from sand_bob import WHITELIST_DEPENDENCIES
     dependencies_str = ", ".join(WHITELIST_DEPENDENCIES)
     return f"""
@@ -13,15 +13,17 @@ Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
 * Use the following libraries when necessary: {dependencies_str}
-* Result output: 
+* Final result output (print or display calls): 
   * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
   * The last print or display call should be the final result ONLY.
   * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
   * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
   * If the task is to generate a plot, ENSURE to display the plot.
-  * If the task is to generate a text or a string, ENSURE to write the text or string to a .txt file.
-  * If the task is to generate a table, ENSURE to write the table to a .csv file.
-  * If the task is to generate a number, list, array or dictionary, ENSURE to write the result to a .json file.
+* Final result output (file writing):
+  * If the task is to generate a text or a string, ENSURE to write the text or string to "{display_output_path}/final_result.txt".
+  * If the task is to generate a table, ENSURE to write the table to "{display_output_path}/final_result.csv".
+  * If the task is to generate a number, list, array or dictionary, ENSURE to write the result to "{display_output_path}/final_result.json".
+    In that case, do not add additional data structures. Simply json.dump the result to the file. E.g. if the result is x=2, then just do `json.dump(x, fp)`.
 * Keep the code short and concise.
 """
 
@@ -48,6 +50,7 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
 * Code style: Check if the code is formatted correctly and if it follows the PEP 8 style guide.
 * Code complexity: 
   * Short and concise code is preferred. 
+  * If a result is a number, do not package it in complicated data structures. When dumping such results to a json file, simply do `json.dump(x, fp)`. Do NOT add dictionaries or lists around it.
   * Do NOT propose adding main() functions as we are running the code in a Jupyter notebook.
   * Avoid determining and displaying results and measurements that are not relevant for the final result.
 * Final result
@@ -66,7 +69,7 @@ Avoid tables.
 def determine_missing_dependencies(code, stdout, stderr):
     import json
     from sand_bob import WHITELIST_DEPENDENCIES, config
-    from sand_bob._utilities import simplify
+    from sand_bob._utilities import extract_code
 
     prompt = f"""
     You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
@@ -86,9 +89,13 @@ def determine_missing_dependencies(code, stdout, stderr):
     Return the missing dependencies in a JSON list and nothing else.
     """
 
-    response = simplify(config.prompt_function_determine_dependencies(prompt))
+    response = extract_code(config.prompt_function_determine_dependencies(prompt))
     #print("Response (json dependencies):", response)
-    missing_dependencies = json.loads(response)
+    try:
+        missing_dependencies = json.loads(response)
+    except Exception as e:
+        print(f"Error loading dependencies: {e} \n\n {response}")
+        missing_dependencies = []
 
     return [dep for dep in missing_dependencies if dep in WHITELIST_DEPENDENCIES]
 
@@ -193,7 +200,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
         code = ""
     
     messages = [
-        {"role": "system", "content": system_prompt_code_generation()},
+        {"role": "system", "content": system_prompt_code_generation("/display_output")},
         {"role": "user", "content": prompt}
         ]
     code = code + extract_code(config.prompt_function_generate_code(messages))
@@ -368,9 +375,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
 
-        #if GOOD_CODE in feedback:
-        #    res.feedback = feedback
-        #    break
+        if GOOD_CODE in feedback:
+            break
 
         # incorporating feedback
         progress += 1
@@ -383,12 +389,9 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
             print("Code did not change. Stopping.")
             break
 
-
-        dependencies = res.dependencies
-
+        res.former_result = former_result
         former_result = res
 
-        code = res.code
     status_display.update("")
     res.total_time = time.time() - start_time
     res.n_attempts = n_a + 1
