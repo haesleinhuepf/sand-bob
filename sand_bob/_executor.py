@@ -108,9 +108,7 @@ class ExecutionResult:
         # Add styling to the tab widget
         self.tab_widget.layout = widgets.Layout(
             width='100%',
-            height='auto',
-            border='1px solid #ddd',
-            padding='10px'
+            height='auto'
         )
         
         # Create the main widget
@@ -812,9 +810,7 @@ class ExecutionResultList:
         # Add some styling to the tab widget
         self.tab_widget.layout = widgets.Layout(
             width='100%',
-            height='auto',
-            border='1px solid #ddd',
-            padding='10px'
+            height='auto'
         )
     
     def display(self):
