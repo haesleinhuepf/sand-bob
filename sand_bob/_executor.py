@@ -73,75 +73,7 @@ class ExecutionResult:
     #    self._create_widget()
 
     def _create_widget(self):
-        """Create the main widget interface."""        
-        # Create collapsible sections with custom styling
-        self.details_button = widgets.Button(
-            description="📋 Details",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #28a745'
-            )
-        )
-        self.details_button.style.button_color = '#d4edda'
-        
-        self.stdout_button = widgets.Button(
-            description=f"📤 StdOut ({len(self.stdout)})",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #17a2b8'
-            )
-        )
-        self.stdout_button.style.button_color = '#d1ecf1'
-        
-        self.stderr_button = widgets.Button(
-            description=f"📥 StdErr ({len(self.stderr)})",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #dc3545'
-            )
-        )
-
-        self.stderr_button.style.button_color = '#f8d7da'
-        
-        self.code_button = widgets.Button(
-            description="💻 Code",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #6f42c1'
-            )
-        )
-        self.code_button.style.button_color = '#e2d9f3'
-        
-        self.output_button = widgets.Button(
-            description="📊 Output",
-            layout=widgets.Layout(
-                width='auto', 
-                margin='2px',
-                border='1px solid #fd7e14'
-            )
-        )
-        self.output_button.style.button_color = '#ffeaa7'
-        
-        # Add save notebook button if notebook file exists
-        self.save_notebook_button = None
-        self.save_notebook_output = None
-        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
-            self.save_notebook_button = widgets.Button(
-                description="💾 Save Notebook",
-                layout=widgets.Layout(
-                    width='auto', 
-                    margin='2px',
-                    border='1px solid #28a745'
-                )
-            )
-            self.save_notebook_button.style.button_color = '#d4edda'
-            self.save_notebook_output = widgets.Output()
-            self.save_notebook_button.on_click(self._save_notebook)
-        
+        """Create the main widget interface with tabs."""        
         # Create output widgets
         self.details_output = widgets.Output()
         self.stdout_output = widgets.Output()
@@ -149,104 +81,49 @@ class ExecutionResult:
         self.code_output = widgets.Output()
         self.output_display = widgets.Output()
         
-        # Connect button clicks
-        self.details_button.on_click(self._toggle_details)
-        self.stdout_button.on_click(self._toggle_stdout)
-        self.stderr_button.on_click(self._toggle_stderr)
-        self.code_button.on_click(self._toggle_code)
-        self.output_button.on_click(self._toggle_output)
+        # Create save notebook output if notebook file exists
+        self.save_notebook_output = None
+        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
+            self.save_notebook_output = widgets.Output()
+            # Populate save notebook content immediately
+            self._populate_save_notebook()
         
-        # Create the main layout
-        button_list = [self.details_button, self.stdout_button, self.stderr_button, self.code_button, self.output_button]
-        output_list = [self.details_output, self.stdout_output, self.stderr_output, self.code_output, self.output_display]
+        # Create tab children in the specified order: output, code, details, stdout, stderr, save notebook
+        tab_children = [self.output_display, self.code_output, self.details_output, self.stdout_output, self.stderr_output]
+        tab_titles = ["Output", "Code", "Details", "StdOut", "StdErr"]
         
-        # Add save notebook button and output if they exist
-        if self.save_notebook_button:
-            button_list.append(self.save_notebook_button)
-            output_list.append(self.save_notebook_output)
-        
-        self.widget = widgets.VBox([
-            widgets.HBox(button_list, layout=widgets.Layout(flex_flow='wrap', gap='5px')),
-        ] + output_list)
-                
-        # Initially hide all detail sections except output
-        self.details_output.layout.display = 'none'
-        self.stdout_output.layout.display = 'none'
-        self.stderr_output.layout.display = 'none'
-        self.code_output.layout.display = 'none'
-        self.output_display.layout.display = 'none'
+        # Add save notebook tab if it exists
         if self.save_notebook_output:
-            self.save_notebook_output.layout.display = 'none'
+            tab_children.append(self.save_notebook_output)
+            tab_titles.append("Save Notebook")
+        
+        # Create the tab widget
+        self.tab_widget = widgets.Tab()
+        self.tab_widget.children = tab_children
+        
+        # Set tab titles
+        for i, title in enumerate(tab_titles):
+            self.tab_widget.set_title(i, title)
+        
+        # Add styling to the tab widget
+        self.tab_widget.layout = widgets.Layout(
+            width='100%',
+            height='auto',
+            border='1px solid #ddd',
+            padding='10px'
+        )
+        
+        # Create the main widget
+        self.widget = self.tab_widget
+        
+        # Populate all tabs immediately
+        self._populate_output()
+        self._populate_code()
+        self._populate_details()
+        self._populate_stdout()
+        self._populate_stderr()
 
-    def _toggle_details(self, b):
-        """Toggle the details section."""
-        if self.details_output.layout.display == 'none':
-            self.details_output.layout.display = 'block'
-            self._populate_details()
-            self.details_button.description = "📋 Details ▼"
-            # Darker green when active
-            self.details_button.style.button_color = '#c3e6cb'
-        else:
-            self.details_output.layout.display = 'none'
-            self.details_button.description = "📋 Details"
-            # Light green when inactive
-            self.details_button.style.button_color = '#d4edda'
 
-    def _toggle_stdout(self, b):
-        """Toggle the stdout section."""
-        if self.stdout_output.layout.display == 'none':
-            self.stdout_output.layout.display = 'block'
-            self._populate_stdout()
-            self.stdout_button.description = f"📤 StdOut ({len(self.stdout)}) ▼"
-            # Darker blue when active
-            self.stdout_button.style.button_color = '#bee5eb'
-        else:
-            self.stdout_output.layout.display = 'none'
-            self.stdout_button.description = f"📤 StdOut ({len(self.stdout)})"
-            # Light blue when inactive
-            self.stdout_button.style.button_color = '#d1ecf1'
-
-    def _toggle_stderr(self, b):
-        """Toggle the stderr section."""
-        if self.stderr_output.layout.display == 'none':
-            self.stderr_output.layout.display = 'block'
-            self._populate_stderr()
-            self.stderr_button.description = f"📥 StdErr ({len(self.stderr)}) ▼"
-            # Darker red when active
-            self.stderr_button.style.button_color = '#f5c6cb'
-        else:
-            self.stderr_output.layout.display = 'none'
-            self.stderr_button.description = f"📥 StdErr ({len(self.stderr)})"
-            # Light red when inactive
-            self.stderr_button.style.button_color = '#f8d7da'
-
-    def _toggle_code(self, b):
-        """Toggle the code section."""
-        if self.code_output.layout.display == 'none':
-            self.code_output.layout.display = 'block'
-            self._populate_code()
-            self.code_button.description = "💻 Code ▼"
-            # Darker purple when active
-            self.code_button.style.button_color = '#d4c4f7'
-        else:
-            self.code_output.layout.display = 'none'
-            self.code_button.description = "💻 Code"
-            # Light purple when inactive
-            self.code_button.style.button_color = '#e2d9f3'
-
-    def _toggle_output(self, b):
-        """Toggle the output section."""
-        if self.output_display.layout.display == 'none':
-            self.output_display.layout.display = 'block'
-            self._populate_output()
-            self.output_button.description = "📊 Output ▼"
-            # Darker orange when active
-            self.output_button.style.button_color = '#fdcb6e'
-        else:
-            self.output_display.layout.display = 'none'
-            self.output_button.description = "📊 Output"
-            # Light orange when inactive
-            self.output_button.style.button_color = '#ffeaa7'
 
 
     def _populate_details(self):
@@ -254,8 +131,7 @@ class ExecutionResult:
         with self.details_output:
             self.details_output.clear_output(wait=True)
             
-            details_html = "<div style='background: #d4edda; padding: 15px; border: 1px solid #28a745; border-radius: 4px; margin: 10px 0;'>"
-            details_html += "<h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
+            details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
             
             # Basic info
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
@@ -295,96 +171,81 @@ class ExecutionResult:
         with self.stdout_output:
             self.stdout_output.clear_output(wait=True)
             if self.stdout:
-                display(HTML(f"<div style='background: #d1ecf1; padding: 15px; border: 1px solid #17a2b8; border-radius: 4px; margin: 10px 0;'><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
+                display(HTML(f"<div><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
             else:
-                display(HTML("<div style='background: #d1ecf1; padding: 15px; border: 1px solid #17a2b8; border-radius: 4px; margin: 10px 0;'><h4>Standard Output</h4><p><em>No output</em></p></div>"))
+                display(HTML("<div><h4>Standard Output</h4><p><em>No output</em></p></div>"))
 
     def _populate_stderr(self):
         """Populate the stderr section."""
         with self.stderr_output:
             self.stderr_output.clear_output(wait=True)
             if self.stderr:
-                display(HTML(f"<div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
+                display(HTML(f"<div><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
             else:
-                display(HTML("<div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
+                display(HTML("<div><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
 
     def _populate_code(self):
         """Populate the code section."""
         with self.code_output:
             self.code_output.clear_output(wait=True)
             if self.code:
-                display(HTML(f"<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
+                display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
-                display(HTML("<div style='background: #e2d9f3; padding: 15px; border: 1px solid #6f42c1; border-radius: 4px; margin: 10px 0;'><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+                display(HTML("<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
 
     def _populate_output(self):
         """Populate the output section."""
         with self.output_display:
             self.output_display.clear_output(wait=True)
             
-
-
-            output_html = "<div style='background: #ffeaa7; padding: 15px; border: 1px solid #fd7e14; border-radius: 4px; margin: 10px 0;'><h4>Execution Output</h4>"
+            output_html = "<div><h4>Execution Output</h4>"
             
             output_html += self._html_output()
             
             output_html += "</div>"
             display(HTML(output_html))
             
-    def _save_notebook(self, b):
-        """Save the executed notebook file and show a link to it."""
-        import os
-        import datetime
-        
-        # Toggle the output display
-        if self.save_notebook_output.layout.display == 'none':
-            self.save_notebook_output.layout.display = 'block'
-            self.save_notebook_button.description = "💾 Save Notebook ▼"
-            # Darker green when active
-            self.save_notebook_button.style.button_color = '#c3e6cb'
+    def _populate_save_notebook(self):
+        """Populate the save notebook section."""
+        with self.save_notebook_output:
+            self.save_notebook_output.clear_output(wait=True)
             
-            with self.save_notebook_output:
-                self.save_notebook_output.clear_output(wait=True)
+            try:
+                # Get the notebook content from files
+                notebook_content = self.files['/display_output/notebook_executed.ipynb']
                 
-                try:
-                    # Get the notebook content from files
-                    notebook_content = self.files['/display_output/notebook_executed.ipynb']
-                    
-                    # Generate filename with timestamp
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"executed_notebook_{timestamp}.ipynb"
-                    
-                    # Get current working directory
-                    current_dir = os.getcwd()
-                    filepath = os.path.join(current_dir, filename)
-                    
-                    # Write the notebook file
-                    with open(filepath, 'wb') as f:
-                        f.write(notebook_content)
-                    
-                    success_html = f"""
-                    <div style='background: #d4edda; padding: 15px; border: 1px solid #28a745; border-radius: 4px; margin: 10px 0;'>
-                        <h4>✅ Notebook Saved Successfully</h4>
-                        <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
-                        <p><strong>Location:</strong> {current_dir}</p>
-                    </div>
-                    """
-                    display(HTML(success_html))
-                    
-                except Exception as e:
-                    # Show error message
-                    error_html = f"""
-                    <div style='background: #f8d7da; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; margin: 10px 0;'>
-                        <h4>❌ Error Saving Notebook</h4>
-                        <p><strong>Error:</strong> {str(e)}</p>
-                    </div>
-                    """
-                    display(HTML(error_html))
-        else:
-            self.save_notebook_output.layout.display = 'none'
-            self.save_notebook_button.description = "💾 Save Notebook"
-            # Light green when inactive
-            self.save_notebook_button.style.button_color = '#d4edda'
+                # Generate filename with timestamp
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"executed_notebook_{timestamp}.ipynb"
+                
+                # Get current working directory
+                import os
+                current_dir = os.getcwd()
+                filepath = os.path.join(current_dir, filename)
+                
+                # Write the notebook file
+                with open(filepath, 'wb') as f:
+                    f.write(notebook_content)
+                
+                success_html = f"""
+                <div>
+                    <h4>✅ Notebook Saved Successfully</h4>
+                    <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
+                    <p><strong>Location:</strong> {current_dir}</p>
+                </div>
+                """
+                display(HTML(success_html))
+                
+            except Exception as e:
+                # Show error message
+                error_html = f"""
+                <div>
+                    <h4>❌ Error Saving Notebook</h4>
+                    <p><strong>Error:</strong> {str(e)}</p>
+                </div>
+                """
+                display(HTML(error_html))
 
     
 
