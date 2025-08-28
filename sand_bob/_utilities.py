@@ -391,9 +391,18 @@ def find_most_common_indices(input_list):
         if not counter:
             continue
             
-        # Find the most common item(s) and their frequency
+        # Find the most common item(s) and their frequency, excluding None
         max_count = max(counter.values())
-        most_common_items = [item for item, count in counter.items() if count == max_count]
+        most_common_items = [item for item, count in counter.items() if count == max_count and item is not None]
+        
+        # If all most common items were None, find the next most common non-None items
+        if not most_common_items and max_count > 0:
+            # Get all items with their counts, excluding None
+            non_none_items = [(item, count) for item, count in counter.items() if item is not None]
+            if non_none_items:
+                # Find the highest count among non-None items
+                max_non_none_count = max(count for _, count in non_none_items)
+                most_common_items = [item for item, count in non_none_items if count == max_non_none_count]
         
         # Update if this type group has higher or equal frequency
         if max_count > highest_frequency:

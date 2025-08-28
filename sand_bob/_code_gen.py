@@ -13,11 +13,12 @@ Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
 * Use the following libraries when necessary: {dependencies_str}
+* Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
 * Final result output (print or display calls): 
   * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
   * The last print or display call should be the final result ONLY.
   * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
-  * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
+  * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call. Do not create any JSON for this.
   * If the task is to generate a plot, ENSURE to display the plot.
   * Also plot intermediate results if possible.
 * Final result output (file writing):
@@ -35,9 +36,9 @@ When provided with Python code, together with corresponding results,
 you will be asked to provide feedback on the code. The code is either an entire 
 Jupyter notebook or a code snippet that is executed in a Jupyter notebook code cell.
 
-## Feedback categories
+# Feedback categories
 * Code quality: Check if the code is well-structured, readable, contains comments and follows best practices.
-* Statistics: Check if best-practice statistics are used, e.g. check if pre-conditions are checked before statistical tests are performed.
+* Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
 * Image Analysis: 
   * In image processing workflows, check intermediate results are displayed and if they look reasonable.
   * If a segmentation is performed, make sure the objects are neither over- nor under-segmented.
@@ -59,8 +60,9 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
   * If the final result is a dataframe, save it in the folder {display_output_path} as .csv file and print its filename in the final output of the program.
   * If the final result is an image, save it in the folder {display_output_path} as .tif file and print its filename in the final output of the program.
   * If the final result is a plot, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program. Additionally, display the plot.
+  * If the final result is supposed to be "Yes" or "No", make sure to print "Yes" or "No" only. Do not create any JSON for this.
 
-## Feedback content
+# Feedback content
 Feedback should be short and concise. No need to be overly friendly.
 Show old code (snippets) and the corresponding new code how you would improve it. 
 Explain your modifications shortly.
@@ -391,13 +393,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(Markdown(f"# {n_a + 1}. Result"))
         #display(res)
 
-        if n_feedback_iterations > 1:
-            status_text = f" ({n_a + 1}/{n_feedback_iterations})"  
-        else:
-            status_text = ""
-
         # code inspection and feedback
-        status_display.update(f"Generating feedback... {status_text}")
+        status_display.update(f"Generating feedback...")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
         status_display.add_progress(1)
 
