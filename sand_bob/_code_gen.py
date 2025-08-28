@@ -136,7 +136,7 @@ def fix_error_in_code(code, stdout, stderr):
     return extract_code(response)
 
 
-def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None):
     """
     Run the code and fix the dependencies or the code if needed.
 
@@ -145,32 +145,51 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
         dependencies: The dependencies to use.
         input_host_path: The path to the input data on the host.
         input_container_path: The path to the input data in the container.
-        n_attempts: The number of attempts to fix the dependencies or the code.
+        n_codefix_attempts: The number of attempts to fix the dependencies or the code.
     
     Returns:
         The result of the execution, the potentially fixed code, and all dependencies including potentially new ones.
     """
     from sand_bob import execute, execute_notebook
     from sand_bob._utilities import is_notebook
-    from IPython.display import display
+    from sand_bob._executor import ExecutionResult
+
     dependencies = dependencies.copy()
     former_result = None
 
-    for n_a in range(n_attempts):
+    n_a = -1
+
+    for n_a in range(n_codefix_attempts + 1):
    
+        if status_display is not None:
+            status_display.update(f"Executing code...")
+
         #print(f"Executing with dependencies: {dependencies}")
         if is_notebook(code):
             result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         
+        if status_display is not None:
+            status_display.add_progress(1)
+
         result.former_result = former_result
+
+        if n_a == n_codefix_attempts:
+            break
+
+        
         former_result = result
 
         if "Traceback" in result.stdout:
             #display(result)
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
+                if status_display is not None:
+                    status_display.update(f"Determining missing dependencies...")
                 new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
+                if status_display is not None:
+                    status_display.add_progress(1)
+
                 if len(new_dependencies) > 0:
                     for new_dependency in new_dependencies:
                         if new_dependency in dependencies:
@@ -181,7 +200,12 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
                         #print(f"Executing again with new dependencies: {new_dependencies}")
                         continue
             
+            if status_display is not None:
+                status_display.update(f"Fixing error in code... ")
             new_code = fix_error_in_code(code, result.stdout, result.stderr)
+            if status_display is not None:
+                status_display.add_progress(1)
+
             if new_code is not None:
                 code = new_code
                 #print(f"Executing again with new code: {code[:100]}")
@@ -196,11 +220,11 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
 
     result.code = code
     result.dependencies = dependencies
-    result.n_attempts = n_a + 1
+    result.n_codefix_attempts = n_a + 1
 
     return result
 
-def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
+def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None):
     """
     Generate a code snippet that runs the given prompt and checks if the output is as expected.
     """
@@ -218,10 +242,15 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
         {"role": "user", "content": prompt}
         ]
     
+    if status_display is not None:
+        status_display.update(f"Generating code...")
     code = code + extract_code(config.prompt_function_generate_code(messages))
     #print(f"Prompt time taken (generate_run): {time.time() - start_time:.2f}s")
     if suffix_code:
         code += "\n" + suffix_code
+
+    if status_display is not None:
+        status_display.add_progress(1)
 
     #print("input_host_path:", input_host_path)
 
@@ -229,29 +258,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
-                          n_attempts=n_attempts)
-    
-    return result
-
-
-def generate_run_check(prompt, prefix_code=None, suffix_code=None, expected_output=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3):
-
-    from ._utilities import simplify
-
-    result = generate_run(prompt=prompt, 
-                                prefix_code=prefix_code, 
-                                suffix_code=suffix_code, 
-                                dependencies=dependencies, 
-                                input_host_path=input_host_path, 
-                                input_container_path=input_container_path, 
-                                n_attempts=n_attempts)
-
-    if isinstance(expected_output, str):
-        result.result_check_ok = simplify(result.stdout) == expected_output
-    elif callable(expected_output):
-        result.result_check_ok = expected_output(result.stdout)
-    else:
-        raise ValueError(f"Expected output must be a string or a callable, got {type(expected_output)}")
+                          n_codefix_attempts=n_codefix_attempts, status_display=status_display)
     
     return result
 
@@ -334,7 +341,7 @@ And the result was:
     return messages
 
 
-def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data"):
+def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None):
     res = generate_run(f"""
     Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
     Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
@@ -355,30 +362,27 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
 
     # Your task
     Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
-    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display)
     
     return res
 
 @parallel
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_attempts=3, n_parallel=1):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1):
 
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
     from ._statusdisplay import StatusDisplay
     import time
 
-    status_display = StatusDisplay()
-    progress = 1
-    max_progress = n_attempts*2
-    status_display.update(f"Generating code... (attempt 1/{n_attempts})", progress / max_progress * 100)
+    status_display = StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*3, status_text="Initializing...")
 
     start_time = time.time()
 
     # code generation and execution
     former_result = None
-    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_attempts=n_attempts)
+    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display)
     n_a = 0
-    for n_a in range(n_attempts-1):
+    for n_a in range(n_feedback_iterations):
         res.former_result = former_result
         dependencies = res.dependencies
         code_before = res.code
@@ -387,10 +391,17 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(Markdown(f"# {n_a + 1}. Result"))
         #display(res)
 
+        if n_feedback_iterations > 1:
+            status_text = f" ({n_a + 1}/{n_feedback_iterations})"  
+        else:
+            status_text = ""
+
         # code inspection and feedback
-        progress += 1
-        status_display.update(f"Generating feedback... (attempt {n_a + 1}/{n_attempts})", progress / max_progress * 100)
+        status_display.update(f"Generating feedback... {status_text}")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
+        status_display.add_progress(1)
+
+        
         res.feedback = feedback
 
         #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
@@ -399,9 +410,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
             break
 
         # incorporating feedback
-        progress += 1
-        status_display.update(f"Incorporating feedback and regenerating code... (attempt {n_a+1}/{n_attempts})", progress / max_progress * 100)
-        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
+        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display)
 
         #print("len code (aft):", len(res.code))
 
@@ -414,7 +424,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     status_display.update("")
     res.total_time = time.time() - start_time
-    res.n_attempts = n_a + 1
+    res.n_codefix_attempts = n_a + 1
 
     return res
 

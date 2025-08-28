@@ -14,7 +14,7 @@ import subprocess
 
 import ipywidgets as widgets
 from IPython.display import display, HTML
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import base64
 from io import BytesIO
@@ -33,11 +33,10 @@ class ExecutionResult:
     dependencies: Optional[List[str]] = None
     traceback: Optional[str] = None
     files: Optional[Dict[str, str]] = None
-    n_attempts: Optional[int] = None
-    result_check_ok: Optional[bool] = None
+    n_codefix_attempts: Optional[int] = None
     outputs: Optional[List[Dict]] = None
     feedback: Optional[str] = None
-    final_result: Optional[str] = None
+    final_result: Optional[Any] = None
     total_time: Optional[float] = None
     former_result: Optional["ExecutionResult"] = None
     render_inline: bool = True
@@ -157,16 +156,11 @@ class ExecutionResult:
                     details_html += f"<li>{file}</li>"
                 details_html += "</ul></li>"
             
-            if self.n_attempts is not None:
-                details_html += f"<li><strong>Number of attempts:</strong> {self.n_attempts}</li>"
+            if self.n_codefix_attempts is not None:
+                details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
             
             if self.final_result is not None:
                 details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
-
-            if self.result_check_ok is not None:
-                status_color = 'green' if self.result_check_ok else 'red'
-                status_text = '✓ OK' if self.result_check_ok else '✗ Failed'
-                details_html += f"<li><strong>Result check:</strong> <span style='color: {status_color};'>{status_text}</span></li>"
             
             if self.traceback:
                 details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.traceback}</pre></li>"
@@ -584,7 +578,7 @@ class CodeExecutor:
                 # Store the outputs in the result
                 result.outputs = outputs
 
-                if result.final_result is None:
+                if result.final_result is None and len(outputs) > 0:
                     result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
 
         
@@ -875,7 +869,7 @@ class ExecutionResultList:
             tab_name = f"Result {len(self.results)}"
         
         # Apply bold formatting if this new result is similar
-        if len(self.results) - 1 in similar_indices:
+        if len(self.results) - 1 in similar_indices and len(similar_indices) > 1:
             tab_name = f"<b>{tab_name}</b>"
         
         self.tab_names.append(tab_name)
