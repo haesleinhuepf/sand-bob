@@ -1,5 +1,6 @@
 import functools
 import concurrent.futures
+import copy
 from typing import Callable, Any, List, Union
 
 
@@ -43,7 +44,7 @@ def parallel(func: Callable) -> Callable:
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     # Submit all tasks
                     future_to_index = {
-                        executor.submit(func, *args, **kwargs): i 
+                        executor.submit(func, *copy.deepcopy(args), **copy.deepcopy(kwargs)): i 
                         for i in range(n)
                     }
                     

@@ -26,6 +26,8 @@ class ExecutionResult:
     stderr: str
     exit_code: int
     execution_time: float
+    run_time: Optional[float] = None
+    build_time: Optional[float] = None
     container_id: Optional[str] = None
     code: Optional[str] = None
     dependencies: Optional[List[str]] = None
@@ -46,11 +48,12 @@ class ExecutionResult:
         from io import BytesIO
         import base64
 
+        self._create_widget()
+        display(self.widget)
+
         if not self.render_inline:
             return ""
 
-        self._create_widget()
-        display(self.widget)
 
         return self._html_output()
     
@@ -133,6 +136,10 @@ class ExecutionResult:
             
             # Basic info
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
+            if self.build_time is not None:
+                details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
+            if self.run_time is not None:
+                details_html += f"<li><strong>Run Time:</strong> {self.run_time:.2f}s</li>"
             details_html += f"<li><strong>Execution Time:</strong> {self.execution_time:.2f}s</li>"
 
             if self.total_time is not None:
@@ -153,6 +160,9 @@ class ExecutionResult:
             if self.n_attempts is not None:
                 details_html += f"<li><strong>Number of attempts:</strong> {self.n_attempts}</li>"
             
+            if self.final_result is not None:
+                details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
+
             if self.result_check_ok is not None:
                 status_color = 'green' if self.result_check_ok else 'red'
                 status_text = '✓ OK' if self.result_check_ok else '✗ Failed'
@@ -430,6 +440,7 @@ class CodeExecutor:
                     with open(requirements_file, "w") as f:
                         for dep in dependencies:
                             f.write(f"{dep}\n")
+                    #print(f"Created requirements.txt with {dependencies}")
                 
                 # Create Dockerfile for notebook execution
                 dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None, display_output_container_path)
@@ -628,11 +639,13 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
     ) -> docker.models.containers.Container:
         """Build and run the Docker container."""
         # Build the image
+        start_time = time.time()
         image, _ = self.client.images.build(
             path=temp_dir,
             tag=f"sand-bob-{int(time.time())}",
             rm=True
         )
+        self.build_time = time.time() - start_time
         
         # Prepare container run parameters
         run_params = {
@@ -671,8 +684,9 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
             run_params['volumes'] = volumes
         
         # Run the container
+        self.run_start_time = time.time()
         container = self.client.containers.run(**run_params)
-        
+
         return container
     
     def _get_execution_result(self, container, start_time: float) -> ExecutionResult:
@@ -681,6 +695,7 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
         try:
             # Wait for container to finish
             container.wait(timeout=self.timeout)
+            self.run_time = time.time() - self.run_start_time
             
             # Get logs
             logs = container.logs().decode('utf-8')
@@ -714,6 +729,8 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
                 stderr=stderr,
                 exit_code=exit_code,
                 execution_time=time.time() - start_time,
+                run_time=self.run_time,
+                build_time=self.build_time,
                 container_id=container.id
             )
             
@@ -774,11 +791,20 @@ class ExecutionResultList:
                       tabs will be named "Result 1", "Result 2", etc.
         """
         self.results = results
+        if tab_names is not None and len(tab_names) != len(results):
+            tab_names = None
+
         self.tab_names = tab_names or [f"Result {i+1}" for i in range(len(results))]
+
+        # Use find_most_common_indices to identify similar results
+        from ._utilities import find_most_common_indices
+        similar_indices = find_most_common_indices([result.final_result for result in results])
         
-        # Ensure we have the same number of tab names as results
-        if len(self.tab_names) != len(self.results):
-            self.tab_names = [f"Result {i+1}" for i in range(len(results))]
+        # Add a star similar indices even for custom names
+        for i in similar_indices:
+            if i < len(self.tab_names):
+                self.tab_names[i] = f"{self.tab_names[i]}*"
+    
         
         # Create the tabbed interface
         self._create_tabbed_interface()
@@ -789,6 +815,7 @@ class ExecutionResultList:
         tab_children = []
         
         for i, result in enumerate(self.results):
+            temp = result.render_inline
             # Set render_inline to False to prevent automatic display
             result.render_inline = False
             
@@ -798,6 +825,8 @@ class ExecutionResultList:
             # Combine header and result widget
             tab_content = result.widget
             tab_children.append(tab_content)
+
+            result.render_inline = temp
         
         # Create the tab widget
         self.tab_widget = widgets.Tab()
@@ -838,8 +867,16 @@ class ExecutionResultList:
         """Add a new result to the list."""
         self.results.append(result)
         
+        # Recalculate similar indices with the new result
+        from ._utilities import find_most_common_indices
+        similar_indices = find_most_common_indices(self.results)
+        
         if tab_name is None:
             tab_name = f"Result {len(self.results)}"
+        
+        # Apply bold formatting if this new result is similar
+        if len(self.results) - 1 in similar_indices:
+            tab_name = f"<b>{tab_name}</b>"
         
         self.tab_names.append(tab_name)
         

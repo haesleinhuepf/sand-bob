@@ -19,6 +19,7 @@ Assume your code will be executed in a Jupyter notebook cell.
   * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
   * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call.
   * If the task is to generate a plot, ENSURE to display the plot.
+  * Also plot intermediate results if possible.
 * Final result output (file writing):
   * If the task is to generate a text or a string, ENSURE to write the text or string to "{display_output_path}/final_result.txt".
   * If the task is to generate a table, ENSURE to write the table to "{display_output_path}/final_result.csv".
@@ -57,7 +58,7 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
   * If the final result is a word, sentence or number, ensure that the final result is displayed using a separate print or display call by the very end of the code. 
   * If the final result is a dataframe, save it in the folder {display_output_path} as .csv file and print its filename in the final output of the program.
   * If the final result is an image, save it in the folder {display_output_path} as .tif file and print its filename in the final output of the program.
-  * If the final result is a plot, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program.
+  * If the final result is a plot, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program. Additionally, display the plot.
 
 ## Feedback content
 Feedback should be short and concise. No need to be overly friendly.
@@ -89,7 +90,10 @@ def determine_missing_dependencies(code, stdout, stderr):
     Return the missing dependencies in a JSON list and nothing else.
     """
 
+    #import time
+    #start_time = time.time()
     response = extract_code(config.prompt_function_determine_dependencies(prompt))
+    #print(f"Prompt time taken (determine_missing_dependencies): {time.time() - start_time:.2f}s")
     #print("Response (json dependencies):", response)
     try:
         missing_dependencies = json.loads(response)
@@ -123,7 +127,10 @@ def fix_error_in_code(code, stdout, stderr):
     ```
     Return the new code and nothing else.
     """
+    #import time
+    #start_time = time.time()
     response = extract_code(config.prompt_function_fix_code(prompt))
+    #print(f"Prompt time taken (fix_error_in_code): {time.time() - start_time:.2f}s")
     #print("Response (code):", response)
 
     return extract_code(response)
@@ -146,10 +153,12 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
     from sand_bob import execute, execute_notebook
     from sand_bob._utilities import is_notebook
     from IPython.display import display
-    original_dependencies = dependencies.copy()
+    dependencies = dependencies.copy()
     former_result = None
 
     for n_a in range(n_attempts):
+   
+        #print(f"Executing with dependencies: {dependencies}")
         if is_notebook(code):
             result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         else:
@@ -162,19 +171,23 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
             #display(result)
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
                 new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
-                if len(new_dependencies) == 0:
-                    break
-                dependencies.extend(new_dependencies)
-                #print(f"Executing again with new dependencies: {new_dependencies}")
-            else:
-                new_code = fix_error_in_code(code, result.stdout, result.stderr)
-                if new_code is not None:
-                    code = new_code
-                    #print(f"Executing again with new code: {new_code}")
-                else:
-                    break
-        else:
-            break
+                if len(new_dependencies) > 0:
+                    for new_dependency in new_dependencies:
+                        if new_dependency in dependencies:
+                            new_dependencies.remove(new_dependency)
+
+                    if len(new_dependencies) > 0:
+                        dependencies.extend(new_dependencies)
+                        #print(f"Executing again with new dependencies: {new_dependencies}")
+                        continue
+            
+            new_code = fix_error_in_code(code, result.stdout, result.stderr)
+            if new_code is not None:
+                code = new_code
+                #print(f"Executing again with new code: {code[:100]}")
+                continue
+        break
+
 
     #if len(dependencies) != len(original_dependencies):
     #    print(f"New dependency list: {dependencies}")
@@ -198,12 +211,15 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
         code = prefix_code + "\n"
     else:
         code = ""
-    
+    #import time
+    #start_time = time.time()
     messages = [
         {"role": "system", "content": system_prompt_code_generation("/display_output")},
         {"role": "user", "content": prompt}
         ]
+    
     code = code + extract_code(config.prompt_function_generate_code(messages))
+    #print(f"Prompt time taken (generate_run): {time.time() - start_time:.2f}s")
     if suffix_code:
         code += "\n" + suffix_code
 
@@ -273,7 +289,11 @@ If there are no improvements, simply say '{GOOD_CODE}' by the end.
                                     prefix=prefix, 
                                     suffix=suffix)
 
-    return config.prompt_function_generate_code_feedback(messages)
+    #import time
+    #start_time = time.time()
+    res = config.prompt_function_generate_code_feedback(messages)
+    #print(f"Prompt time taken (generate_code_feedback): {time.time() - start_time:.2f}s")
+    return res
 
 
 def code_and_outputs_to_messages(code: str, list_of_objects, prefix, suffix):
@@ -439,6 +459,11 @@ def python_code_to_beautiful_notebook(code, dependencies=[], input_host_path=Non
 
     return res
 
-
-
+def generate_code(*args, **kwargs):
+    from ._executor import ExecutionResultList
+    result = generate_and_optimize_code(*args, **kwargs)
+    if isinstance(result, list):
+        return ExecutionResultList(result)
+    else:
+        return result
 
