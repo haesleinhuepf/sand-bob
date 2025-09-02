@@ -36,3 +36,4 @@ def combine_user_input(line, cell):
     else:
         user_input = None
     return user_input
+
