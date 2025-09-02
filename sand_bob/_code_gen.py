@@ -261,6 +261,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
                           n_codefix_attempts=n_codefix_attempts, status_display=status_display)
+    result.prompt = prompt
     
     return result
 
@@ -369,7 +370,7 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
     return res
 
 @parallel
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True):
 
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
@@ -419,18 +420,33 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         res.former_result = former_result
         former_result = res
 
+
+    # Apply final touch to make the code look nice in a notebook
+    if final_touch:
+        status_display.update("Fina touch")
+        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        res.former_result = former_result
+
     status_display.update("")
     res.total_time = time.time() - start_time
     res.n_codefix_attempts = n_a + 1
-
     return res
 
 
-def python_code_to_beautiful_notebook(code, dependencies=[], input_host_path=None, input_container_path="/input_data"):
+def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data"):
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown
 
     dependencies_str = ", ".join(dependencies)
+
+    original_task_prompt = ""
+    if original_task:
+        original_task_prompt = f"""
+    Also make sure the original task remains fulfilled and the explanation in the notebook refers to the original task.
+
+    Original task:
+    {original_task}
+        """
 
     prompt = f"""
     You are an expert in python programming. You are given a python code snippet.
@@ -447,6 +463,7 @@ def python_code_to_beautiful_notebook(code, dependencies=[], input_host_path=Non
     ```
     {code}
     ```
+    {original_task_prompt}
 
     Now convert the code into a beautiful Jupyter notebook in JSON format. No additional explanation is needed.
     """
@@ -454,15 +471,20 @@ def python_code_to_beautiful_notebook(code, dependencies=[], input_host_path=Non
     notebook_str = config.prompt_function_notebook_conversion(prompt)
 
     notebook_str = remove_outer_markdown(notebook_str)
-    notebook_str = erase_outputs_of_code_cells(notebook_str)
+    try:
+        notebook_str = erase_outputs_of_code_cells(notebook_str)
+    except Exception as e:
+        print(f"Error erasing outputs of code cells: {e}")
+        with open("notebook_str.json", "w") as f:
+            f.write(notebook_str)
+        notebook_str = notebook_str
 
     from ._executor import execute_notebook
     res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
+    feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
 
-    feedback = generate_code_feedback(res.code, res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
-
-    res = incorporate_feedback(res.code, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+    res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
     return res
 

@@ -212,42 +212,121 @@ class ExecutionResult:
         with self.save_notebook_output:
             self.save_notebook_output.clear_output(wait=True)
             
-            try:
-                # Get the notebook content from files
-                notebook_content = self.files['/display_output/notebook_executed.ipynb']
-                
-                # Generate filename with timestamp
-                import datetime
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"executed_notebook_{timestamp}.ipynb"
-                
-                # Get current working directory
+            # Helper function to find first available Untitled filename
+            def find_first_available_untitled():
                 import os
-                current_dir = os.getcwd()
-                filepath = os.path.join(current_dir, filename)
+                counter = 1
+                while True:
+                    filename = f"Untitled{counter}.ipynb"
+                    if not os.path.exists(filename):
+                        return filename
+                    counter += 1
+            
+            # Helper function to get all available notebooks recursively
+            def get_available_notebooks(result, depth=0):
+                notebooks = []
+                if result.files and '/display_output/notebook_executed.ipynb' in result.files:
+                    notebooks.append((f"Current Result (depth {depth})", result))
                 
-                # Write the notebook file
-                with open(filepath, 'wb') as f:
-                    f.write(notebook_content)
+                if result.former_result:
+                    notebooks.extend(get_available_notebooks(result.former_result, depth + 1))
                 
-                success_html = f"""
-                <div>
-                    <h4>✅ Notebook Saved Successfully</h4>
-                    <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
-                    <p><strong>Location:</strong> {current_dir}</p>
-                </div>
-                """
-                display(HTML(success_html))
-                
-            except Exception as e:
-                # Show error message
-                error_html = f"""
-                <div>
-                    <h4>❌ Error Saving Notebook</h4>
-                    <p><strong>Error:</strong> {str(e)}</p>
-                </div>
-                """
-                display(HTML(error_html))
+                return notebooks
+            
+            # Get available notebooks
+            available_notebooks = get_available_notebooks(self)
+            
+            if not available_notebooks:
+                display(HTML("<div><h4>❌ No notebooks available to save</h4></div>"))
+                return
+            
+            # Create widgets
+            filename_input = widgets.Text(
+                value=find_first_available_untitled(),
+                description='Filename:',
+                style={'description_width': '100px'},
+                layout=widgets.Layout(width='400px')
+            )
+            
+            notebook_dropdown = widgets.Dropdown(
+                options=[(f"{name}", notebook) for name, notebook in available_notebooks],
+                value=available_notebooks[0][1] if available_notebooks else None,
+                description='Notebook:',
+                style={'description_width': '100px'},
+                layout=widgets.Layout(width='400px')
+            )
+            
+            save_button = widgets.Button(
+                description='Save Notebook',
+                button_style='success',
+                layout=widgets.Layout(width='150px')
+            )
+            
+            # Output widget for status messages
+            status_output = widgets.Output()
+            
+            # Save button click handler
+            def on_save_click(b):
+                with status_output:
+                    status_output.clear_output(wait=True)
+                    
+                    try:
+                        selected_notebook = notebook_dropdown.value
+                        filename = filename_input.value.strip()
+                        
+                        if not filename:
+                            display(HTML("<div style='color: red;'>❌ Please enter a filename</div>"))
+                            return
+                        
+                        if not filename.endswith('.ipynb'):
+                            filename += '.ipynb'
+                        
+                        # Get the notebook content
+                        notebook_content = selected_notebook.files['/display_output/notebook_executed.ipynb']
+                        
+                        # Get current working directory
+                        import os
+                        current_dir = os.getcwd()
+                        filepath = os.path.join(current_dir, filename)
+                        
+                        # Check if file already exists
+                        if os.path.exists(filepath):
+                            display(HTML(f"<div style='color: orange;'>⚠️ File {filename} already exists. Overwriting...</div>"))
+                        
+                        # Write the notebook file
+                        with open(filepath, 'wb') as f:
+                            f.write(notebook_content)
+                        
+                        success_html = f"""
+                        <div style='color: green;'>
+                            <h4>✅ Notebook Saved Successfully</h4>
+                            <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
+                            <p><strong>Location:</strong> {current_dir}</p>
+                        </div>
+                        """
+                        display(HTML(success_html))
+                        
+                    except Exception as e:
+                        error_html = f"""
+                        <div style='color: red;'>
+                            <h4>❌ Error Saving Notebook</h4>
+                            <p><strong>Error:</strong> {str(e)}</p>
+                        </div>
+                        """
+                        display(HTML(error_html))
+            
+            save_button.on_click(on_save_click)
+            
+            # Create layout
+            controls_layout = widgets.VBox([
+                widgets.HBox([notebook_dropdown]),
+                widgets.HBox([filename_input]),
+                widgets.HBox([save_button]),
+                status_output
+            ])
+            
+            display(HTML("<div><h4>💾 Save Notebook</h4></div>"))
+            display(controls_layout)
 
     
 
