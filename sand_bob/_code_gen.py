@@ -17,14 +17,14 @@ Assume your code will be executed in a Jupyter notebook cell.
 * Final result output (print or display calls): 
   * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
   * The last print or display call should be the final result ONLY.
-  * If the task is to generate a count, ratio or measurements, ENSURE to print the final result using a separate `print` call. 
-  * If the task is to answer a yes/no question, ENSURE to print "Yes" or "No" using a separate `print` call. Do not create any JSON for this.
-  * If the task is to generate a plot, ENSURE to display the plot.
+  * If the task is to generate a count, ratio or measurements, print the final result using a separate `print` call. 
+  * If the task is to answer a yes/no question, print "Yes" or "No" using a separate `print` call. Do not create any JSON for this.
+  * If the task is to generate a plot, display the plot.
   * Also plot intermediate results if possible.
 * Final result output (file writing):
-  * If the task is to generate a text or a string, ENSURE to write the text or string to "{display_output_path}/final_result.txt".
-  * If the task is to generate a table, ENSURE to write the table to "{display_output_path}/final_result.csv".
-  * If the task is to generate a number, list, array or dictionary, ENSURE to write the result to "{display_output_path}/final_result.json".
+  * If the task is to generate a text or a string, write the text or string to "{display_output_path}/final_result.txt".
+  * If the task is to generate a table, write the table to "{display_output_path}/final_result.csv".
+  * If the task is to generate a number, list, array or dictionary, write the result to "{display_output_path}/final_result.json".
     In that case, do not add additional data structures. Simply json.dump the result to the file. E.g. if the result is x=2, then just do `json.dump(x, fp)`.
 * Keep the code short and concise.
 """
@@ -423,7 +423,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
-        status_display.update("Fina touch")
+        status_display.update("Final touch")
         res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
         res.former_result = former_result
 
@@ -442,7 +442,8 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     original_task_prompt = ""
     if original_task:
         original_task_prompt = f"""
-    Also make sure the original task remains fulfilled and the explanation in the notebook refers to the original task.
+    Also make sure the original task remains fulfilled: Mention the original task in the first markdown cell of the notebook.
+    The explanations further down in the notebook should refers to the original task where relevant.
 
     Original task:
     {original_task}
@@ -452,12 +453,11 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     You are an expert in python programming. You are given a python code snippet.
     Your task is to convert the code into a beautiful Jupyter notebook in JSON format. Please take care of the following:
     * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
-    * Add a cell with installation instructions for these dependencies: {dependencies_str}
-    * Split the code into multiple cells.
+    * Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
     * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
-    * Reuse comments as markdown cells above the respective code cells.
-    * Add markdown cells where there are none.
+    * Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
     * Do not generate any output.
+    * Make sure the code still does the same thing as the original code.
 
     The code is:
     ```
@@ -475,16 +475,15 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:
         print(f"Error erasing outputs of code cells: {e}")
-        with open("notebook_str.json", "w") as f:
+        with open("notebook_str.json", "w", encoding="utf-8") as f:
             f.write(notebook_str)
         notebook_str = notebook_str
 
     from ._executor import execute_notebook
     res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
-    feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
-
-    res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+    #feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
+    #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
     return res
 

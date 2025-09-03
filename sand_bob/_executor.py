@@ -191,7 +191,28 @@ class ExecutionResult:
         with self.code_output:
             self.code_output.clear_output(wait=True)
             if self.code:
-                display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
+                # Check if the code is a notebook
+                from ._utilities import is_notebook
+                if is_notebook(self.code):
+                    import json
+                    notebook_data = json.loads(self.code)
+                    
+                    # Extract source code from notebook cells
+                    source_code = ""
+                    if "cells" in notebook_data:
+                        for i, cell in enumerate(notebook_data["cells"]):
+                            if cell.get("cell_type") == "code":
+                                # Add cell number and source code
+                                cell_source = cell.get("source", "")
+                                if isinstance(cell_source, list):
+                                    cell_source = "".join(cell_source)
+                                
+                                source_code += f"# Cell {i+1}\n{cell_source}\n\n"
+                    
+                    display(HTML(f"<div><h4>Executed Code (from notebook)</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{source_code}</pre></div>"))
+                else:
+                    # Regular code, display as-is
+                    display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
                 display(HTML("<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
 
@@ -265,6 +286,39 @@ class ExecutionResult:
             # Output widget for status messages
             status_output = widgets.Output()
             
+            # Helper functions to avoid code duplication
+            def show_success_message(filename, filepath, current_dir, was_overwritten=False):
+                """Display success message after saving notebook."""
+                overwrite_note = "<p><em>Previous file was overwritten.</em></p>" if was_overwritten else ""
+                success_html = f"""
+                <div style='color: green;'>
+                    <h4>✅ Notebook Saved Successfully</h4>
+                    <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
+                    <p><strong>Location:</strong> {current_dir}</p>
+                    {overwrite_note}
+                </div>
+                """
+                display(HTML(success_html))
+            
+            def show_error_message(error):
+                """Display error message when saving fails."""
+                error_html = f"""
+                <div style='color: red;'>
+                    <h4>❌ Error Saving Notebook</h4>
+                    <p><strong>Error:</strong> {str(error)}</p>
+                </div>
+                """
+                display(HTML(error_html))
+            
+            def save_notebook_file(filepath, notebook_content):
+                """Save the notebook file and return success status."""
+                try:
+                    with open(filepath, 'wb') as f:
+                        f.write(notebook_content)
+                    return True
+                except Exception as e:
+                    return e
+            
             # Save button click handler
             def on_save_click(b):
                 with status_output:
@@ -291,29 +345,45 @@ class ExecutionResult:
                         
                         # Check if file already exists
                         if os.path.exists(filepath):
-                            display(HTML(f"<div style='color: orange;'>⚠️ File {filename} already exists. Overwriting...</div>"))
+                            # Show confirmation dialog instead of auto-overwriting
+                            confirm_html = f"""
+                            <div style='color: orange;'>
+                                <h4>⚠️ File Already Exists</h4>
+                                <p>The file <strong>{filename}</strong> already exists. Do you want to overwrite it?</p>
+                            </div>
+                            """
+                            display(HTML(confirm_html))
+                            
+                            # Create a confirmation button widget
+                            confirm_button = widgets.Button(
+                                description='Confirm Overwrite',
+                                button_style='warning',
+                                layout=widgets.Layout(width='200px'),
+                                style={'button_color': '#ff8c00'}  # Orange color matching the warning text
+                            )
+                            
+                            def on_confirm_overwrite(b):
+                                with status_output:
+                                    status_output.clear_output(wait=True)
+                                    result = save_notebook_file(filepath, notebook_content)
+                                    if result is True:
+                                        show_success_message(filename, filepath, current_dir, was_overwritten=True)
+                                    else:
+                                        show_error_message(result)
+                            
+                            confirm_button.on_click(on_confirm_overwrite)
+                            display(confirm_button)
+                            return
                         
-                        # Write the notebook file
-                        with open(filepath, 'wb') as f:
-                            f.write(notebook_content)
-                        
-                        success_html = f"""
-                        <div style='color: green;'>
-                            <h4>✅ Notebook Saved Successfully</h4>
-                            <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
-                            <p><strong>Location:</strong> {current_dir}</p>
-                        </div>
-                        """
-                        display(HTML(success_html))
+                        # Write the notebook file (file doesn't exist)
+                        result = save_notebook_file(filepath, notebook_content)
+                        if result is True:
+                            show_success_message(filename, filepath, current_dir, was_overwritten=False)
+                        else:
+                            show_error_message(result)
                         
                     except Exception as e:
-                        error_html = f"""
-                        <div style='color: red;'>
-                            <h4>❌ Error Saving Notebook</h4>
-                            <p><strong>Error:</strong> {str(e)}</p>
-                        </div>
-                        """
-                        display(HTML(error_html))
+                        show_error_message(e)
             
             save_button.on_click(on_save_click)
             

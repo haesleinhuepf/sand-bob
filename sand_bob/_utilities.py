@@ -102,6 +102,7 @@ def erase_outputs_of_code_cells(notebook_file_content: str):
 
     # removed invalid characters
     clean_file_content = re.sub(r'[\x00-\x1f\x7f]', '', notebook_file_content)
+    clean_file_content = clean_file_content.encode("ascii", errors="ignore")
 
     notebook = json.loads(clean_file_content)
     for cell in notebook.get('cells', []):
@@ -309,6 +310,8 @@ def find_most_common_indices(input_list):
     """
     import numpy as np
     from collections import Counter
+
+    input_list = input_list.copy()
     
     if not input_list:
         return []
@@ -386,7 +389,7 @@ def find_most_common_indices(input_list):
                 counter = Counter(range(len(items)))
         else:
             # For other types (strings, numbers, booleans), count directly
-            counter = Counter(items)
+            counter = Counter([str(i) for i in items])
         
         if not counter:
             continue
@@ -441,8 +444,8 @@ def find_most_common_indices(input_list):
                     except:
                         pass
                 else:
-                    # Direct comparison for other types
-                    if item == common_item:
+                    # Direct string comparison for other types
+                    if str(item) == str(common_item):
                         most_common_indices.append(type_indices[best_type_key][i])
     
     return sorted(most_common_indices)
