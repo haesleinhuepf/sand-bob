@@ -49,6 +49,8 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
 * Sanity checks: If the code is longer, make sure that there are sanity checks for intermediate results.
 * Documentation: Check if the code is documented and if the documentation is up to date.
 * Error handling: Check if the code is robust and if it handles errors gracefully.
+* Correct file paths in the code in case they were specified differently in the task description.
+* Do not write code for generating synthetic data unless your asked to explicitly.
 * Code style: Check if the code is formatted correctly and if it follows the PEP 8 style guide.
 * Code complexity: 
   * Short and concise code is preferred. 

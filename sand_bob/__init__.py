@@ -3,7 +3,7 @@ Sand-Bob - A Python library for executing AI-generated code in Docker containers
 """
 from ._executor import ExecutionResult, execute, execute_notebook
 from ._code_gen import generate_code
-from ._bob import bob, initialize
+from ._bob import alice, initialize
 
 from ._config import config, config_openai, config_kisski
 

@@ -134,6 +134,9 @@ class ExecutionResult:
             details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
             
             # Basic info
+            if self.final_result is not None:
+                details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
+            
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
             if self.build_time is not None:
                 details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
@@ -159,11 +162,13 @@ class ExecutionResult:
             if self.n_codefix_attempts is not None:
                 details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
             
-            if self.final_result is not None:
-                details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
+            
             
             if self.traceback:
                 details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.traceback}</pre></li>"
+
+            if self.feedback:
+                details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.feedback}</pre></li>"
             
             details_html += "</ul></div>"
             display(HTML(details_html))
