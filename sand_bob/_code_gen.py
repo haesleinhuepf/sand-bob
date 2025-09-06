@@ -437,7 +437,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
 def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data"):
     from ._config import config
-    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown
+    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
 
     dependencies_str = ", ".join(dependencies)
 
@@ -473,6 +473,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     notebook_str = config.prompt_function_notebook_conversion(prompt)
 
     notebook_str = remove_outer_markdown(notebook_str)
+    notebook_str = fix_json(notebook_str)
     try:
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:

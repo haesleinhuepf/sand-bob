@@ -946,7 +946,7 @@ class ExecutionResultList:
 
         # Use find_most_common_indices to identify similar results
         from ._utilities import find_most_common_indices
-        similar_indices = find_most_common_indices([result.final_result for result in results])
+        similar_indices = find_most_common_indices([result.final_result if hasattr(result, 'final_result') else None for result in results])
         
         # Add a star similar indices even for custom names
         for i in similar_indices:

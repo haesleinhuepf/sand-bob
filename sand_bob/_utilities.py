@@ -449,3 +449,94 @@ def find_most_common_indices(input_list):
                         most_common_indices.append(type_indices[best_type_key][i])
     
     return sorted(most_common_indices)
+
+
+import json
+import re
+import string
+
+_WS = set(" \t\r\n")
+
+def _prev_non_ws(s: str, i: int) -> int:
+    j = i - 1
+    while j >= 0 and s[j] in _WS:
+        j -= 1
+    return j
+
+def _next_non_ws(s: str, i: int) -> int:
+    j = i
+    while j < len(s) and s[j] in _WS:
+        j += 1
+    return j
+
+def _patch_invalid_escape(s: str, pos: int) -> str:
+    # If the char at pos isn't a backslash, try the previous non-ws char.
+    if pos >= len(s) or s[pos] != "\\":
+        p = _prev_non_ws(s, pos+1 if pos < len(s) else len(s))
+        if p >= 0 and s[p] == "\\":
+            pos = p
+        else:
+            return s
+    return s[:pos] + "\\\\" + s[pos+1:]
+
+def _patch_missing_comma(s: str, pos: int) -> str:
+    """
+    Heuristics:
+    1) If we're right before a closing } or ], and there's a trailing comma
+       immediately before that, remove the trailing comma.
+    2) Otherwise, insert a comma just before the current non-ws token,
+       unless it would follow {, [, or , (which would be illegal).
+    """
+    k = _next_non_ws(s, pos)
+    # Case 1: trailing comma before } or ]
+    if k < len(s) and s[k] in "}]":
+        # Find previous non-ws position; if it's a comma, remove it
+        p = _prev_non_ws(s, k)
+        if p >= 0 and s[p] == ",":
+            return s[:p] + s[p+1:]
+        # Otherwise, nothing to fix here
+        return s
+
+    # Case 2: insert a comma before the next token if previous token isn't an opener or comma
+    prev = _prev_non_ws(s, k)
+    if prev >= 0 and s[prev] not in "{[,":
+        return s[:k] + "," + s[k:]
+    return s
+
+def fix_json(s: str, max_retries: int = 20):
+    """
+    Try to load JSON string `s`. On specific errors, attempt minimal edits and retry:
+      - Invalid \\escape -> double the offending backslash
+      - Expecting ',' delimiter -> insert missing comma OR remove trailing comma
+    Raises the last exception if it cannot be repaired within `max_retries`.
+    """
+    for _ in range(max_retries):
+        try:
+            json.loads(s)
+            return s
+        except json.decoder.JSONDecodeError as e:
+            msg = str(e)
+            m = re.search(r"\(char (\d+)\)", msg)
+            pos = int(m.group(1)) if m else None
+
+            if pos is None:
+                # Can't locate; give up gracefully
+                raise
+
+            if "Invalid \\escape" in msg:
+                s2 = _patch_invalid_escape(s, pos)
+                if s2 == s:
+                    raise
+                s = s2
+                continue
+
+            if "Expecting ',' delimiter" in msg:
+                s2 = _patch_missing_comma(s, pos)
+                if s2 == s:
+                    raise
+                s = s2
+                continue
+
+            # Different error: fail fast (or add more heuristics as needed)
+            raise
+    raise ValueError("Failed to repair JSON after multiple attempts")
