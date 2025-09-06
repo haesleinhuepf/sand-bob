@@ -214,6 +214,8 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
                 code = new_code
                 #print(f"Executing again with new code: {code[:100]}")
                 continue
+        if status_display is not None:
+            status_display.add_progress(n_codefix_attempts - n_a)
         break
 
 
@@ -379,7 +381,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     from ._statusdisplay import StatusDisplay
     import time
 
-    status_display = StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*3, status_text="Initializing...")
+    status_display = StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*2, status_text="Initializing...")
 
     start_time = time.time()
 
@@ -407,6 +409,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(HTML("<details><summary>Feedback</summary>" + markdown_to_html(feedback) + "</details>"))
 
         if GOOD_CODE in feedback:
+            if status_display is not None:
+                status_display.add_progress(n_feedback_iterations - 1 - n_a)
             break
 
         # incorporating feedback
@@ -417,6 +421,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         if res.code == code_before:
             print("Code did not change. Stopping.")
+            if status_display is not None:
+                status_display.add_progress(n_feedback_iterations - 1 - n_a)
             break
 
         res.former_result = former_result
@@ -457,6 +463,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
     * Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
       * Do not split the code between figure creating and plotting. These things should stay in the same cell.
+      * NEVER split the code within functions, loops, conditions, etc.
     * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
     * Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
     * Do not generate any output.
