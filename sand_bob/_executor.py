@@ -492,7 +492,8 @@ class CodeExecutor:
         python_version: str = "3.11",
         base_image: Optional[str] = None,
         timeout: int = 30,
-        memory_limit: str = "512m"
+        memory_limit: str = "512m",
+        gpu: bool = None
     ):
         """
         Initialize the code executor.
@@ -503,10 +504,11 @@ class CodeExecutor:
             timeout: Execution timeout in seconds
             memory_limit: Memory limit for containers
         """
+        self._gpu = False
         self.python_version = python_version
-        self.base_image = base_image or f"python:{python_version}-slim"
         self.timeout = timeout
         self.memory_limit = memory_limit
+        # Initialize Docker client early so we can detect GPU capabilities
         try:
             self.client = docker.from_env()
         except DockerException as e:
@@ -519,6 +521,38 @@ class CodeExecutor:
         except Exception as e:
             print(f"Error initializing Docker client: {e}")
             self.client = None
+
+        # Detect GPU capability from Docker runtime information
+        if gpu is not None:
+            self._gpu = gpu
+        else:
+            try:
+                if self.client is not None:
+                    info = self.client.info()
+                    runtimes = info.get('Runtimes') or {}
+                    default_runtime = info.get('DefaultRuntime') or ''
+                    plugins = info.get('Plugins') or {}
+                    plugin_runtimes = plugins.get('Runtime') or []
+                    # Heuristics: presence of 'nvidia' runtime or default runtime is nvidia
+                    has_nvidia_runtime = (
+                        ('nvidia' in runtimes) or
+                        (isinstance(plugin_runtimes, list) and 'nvidia' in plugin_runtimes) or
+                        (isinstance(plugin_runtimes, dict) and 'nvidia' in plugin_runtimes) or
+                        (default_runtime == 'nvidia')
+                    )
+                    self._gpu = bool(has_nvidia_runtime)
+            except Exception:
+                # If any error occurs during detection, assume no GPU
+                self._gpu = False
+
+        # Choose base image based on GPU availability if not explicitly provided
+        if base_image is not None:
+            self.base_image = base_image
+        else:
+            #if self._gpu:
+            #    self.base_image = f"superlinear/python-gpu:{python_version}-cuda11.8"
+            #else:
+            self.base_image = f"python:{python_version}-slim"
 
         self.containers = []
         
@@ -741,7 +775,12 @@ class CodeExecutor:
     
     def _create_notebook_dockerfile(self, has_dependencies: bool, output_container_path: str) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
+        if self._gpu:
+            gpu_stuff = "ocl-icd-libopencl1 clinfo rocm-opencl-runtime rocm-opencl-dev "
+        else:
+            gpu_stuff = ""
 
+        print("GPU stuff", gpu_stuff)
 
         dockerfile = f"""
 FROM {self.base_image}
@@ -750,7 +789,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \\
-    gcc \\
+    gcc {gpu_stuff}\\
     && rm -rf /var/lib/apt/lists/*
 
 # Install jupyter and nbconvert
@@ -831,6 +870,15 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
         if volumes:
             run_params['volumes'] = volumes
         
+        # Add GPU device requests if GPU is available and requested
+        if self._gpu:
+            try:
+                from docker.types import DeviceRequest
+                run_params['device_requests'] = [DeviceRequest(count=-1, capabilities=[["gpu"]])]
+            except Exception:
+                # If docker.types is unavailable or any error occurs, skip GPU request
+                pass
+
         # Run the container
         self.run_start_time = time.time()
         container = self.client.containers.run(**run_params)
@@ -963,7 +1011,7 @@ class ExecutionResultList:
         tab_children = []
         
         for i, result in enumerate(self.results):
-            temp = result.render_inline
+            temp = result.render_inline if hasattr(result, 'render_inline') else True
             # Set render_inline to False to prevent automatic display
             result.render_inline = False
             
@@ -971,8 +1019,9 @@ class ExecutionResultList:
             result._create_widget()
             
             # Combine header and result widget
-            tab_content = result.widget
-            tab_children.append(tab_content)
+            if hasattr(result, 'widget'):
+                tab_content = result.widget
+                tab_children.append(tab_content)
 
             result.render_inline = temp
         
