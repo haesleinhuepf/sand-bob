@@ -7,19 +7,14 @@ def prompt_ollama(message:str, model="gpt-oss:20b"):
         message = [{"role": "user", "content": message}]
         
     # setup connection to the LLM
-    client = openai.OpenAI()
-    client.base_url = "http://localhost:11434/v1"
-    client.api_key = "none"
+    client = openai.OpenAI(base_url = "http://localhost:11434/v1", api_key = "none")
     response = client.chat.completions.create(
         model=model,
         messages=message
     )
 
-    print("OLLAMA model: ", model)
-    
     # extract answer
     result = response.choices[0].message.content
-    print(result)
     if "</thinking>" in result:
         result = result.split("</thinking>")[1]
     return result

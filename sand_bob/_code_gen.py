@@ -486,8 +486,8 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:
         print(f"Error fixing json or erasing outputs of code cells: {e}")
-        with open("notebook_str.json", "w", encoding="utf-8") as f:
-            f.write(notebook_str)
+        #with open("notebook_str.json", "w", encoding="utf-8") as f:
+        #    f.write(notebook_str)
         notebook_str = notebook_str
 
     from ._executor import execute_notebook

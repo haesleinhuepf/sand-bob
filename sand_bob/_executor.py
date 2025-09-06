@@ -963,6 +963,8 @@ class ExecutionResultList:
         tab_children = []
         
         for i, result in enumerate(self.results):
+            if result is None:
+                continue
             temp = result.render_inline if hasattr(result, 'render_inline') else True
             # Set render_inline to False to prevent automatic display
             result.render_inline = False
