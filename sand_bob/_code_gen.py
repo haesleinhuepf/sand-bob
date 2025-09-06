@@ -456,6 +456,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     Your task is to convert the code into a beautiful Jupyter notebook in JSON format. Please take care of the following:
     * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
     * Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
+      * Do not split the code between figure creating and plotting. These things should stay in the same cell.
     * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
     * Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
     * Do not generate any output.
@@ -473,11 +474,11 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     notebook_str = config.prompt_function_notebook_conversion(prompt)
 
     notebook_str = remove_outer_markdown(notebook_str)
-    notebook_str = fix_json(notebook_str)
     try:
+        notebook_str = fix_json(notebook_str)
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:
-        print(f"Error erasing outputs of code cells: {e}")
+        print(f"Error fixing json or erasing outputs of code cells: {e}")
         with open("notebook_str.json", "w", encoding="utf-8") as f:
             f.write(notebook_str)
         notebook_str = notebook_str

@@ -963,7 +963,7 @@ class ExecutionResultList:
         tab_children = []
         
         for i, result in enumerate(self.results):
-            temp = result.render_inline
+            temp = result.render_inline if hasattr(result, 'render_inline') else True
             # Set render_inline to False to prevent automatic display
             result.render_inline = False
             
@@ -971,8 +971,9 @@ class ExecutionResultList:
             result._create_widget()
             
             # Combine header and result widget
-            tab_content = result.widget
-            tab_children.append(tab_content)
+            if hasattr(result, 'widget'):
+                tab_content = result.widget
+                tab_children.append(tab_content)
 
             result.render_inline = temp
         

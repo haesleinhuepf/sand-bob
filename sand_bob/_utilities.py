@@ -521,6 +521,7 @@ def fix_json(s: str, max_retries: int = 20):
 
             if pos is None:
                 # Can't locate; give up gracefully
+                print(f"Warning: Failed to fix JSON: {e}")
                 raise
 
             if "Invalid \\escape" in msg:
