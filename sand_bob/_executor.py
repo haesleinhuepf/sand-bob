@@ -74,8 +74,15 @@ class ExecutionResult:
     #    """Initialize the widget interface after dataclass initialization."""
     #    self._create_widget()
 
-    def _create_widget(self):
-        """Create the main widget interface with tabs."""        
+    def _create_widget(self, include_chain_selector: bool = True):
+        """Create the main widget interface with tabs.
+
+        Args:
+            include_chain_selector: When True, show a dropdown above the tabs
+                to navigate the chain of `former_result` starting from the
+                earliest result to the current one. When False, render only
+                this result's tabs (used for nested rendering).
+        """
         # Create output widgets
         self.details_output = widgets.Output()
         self.stdout_output = widgets.Output()
@@ -113,15 +120,78 @@ class ExecutionResult:
             height='auto'
         )
         
-        # Create the main widget
-        self.widget = self.tab_widget
-        
-        # Populate all tabs immediately
+        # Populate all tabs immediately for this result
         self._populate_output()
         self._populate_code()
         self._populate_details()
         self._populate_stdout()
         self._populate_stderr()
+
+        # If requested, create a dropdown that lets the user switch between
+        # this result and all of its former_result ancestors. The list starts
+        # with the earliest result (no former_result) and ends with current.
+        if include_chain_selector:
+            # Build the chain from oldest to newest
+            chain: List[ExecutionResult] = []
+            cursor = self
+            while cursor is not None:
+                if cursor is cursor.former_result:
+                    print(f"Cursor is same as former_result")
+                    break
+                if cursor in chain:
+                    print(f"Cycle detected in chain")
+                    break
+                chain.append(cursor)    
+                cursor = cursor.former_result
+            chain = list(reversed(chain))
+
+            if len(chain) > 1:
+                # Prepare widgets for each result in the chain without their own selector
+                chain_widgets = []
+                for r in chain:
+                    # Avoid re-creating if widget exists and is suitable
+                    r._create_widget(include_chain_selector=False)
+                    chain_widgets.append(r.widget if hasattr(r, 'widget') else self.tab_widget)
+
+                # Labels: Result 1..N with simple descriptors
+                def make_label(idx: int, r: "ExecutionResult") -> str:
+                    label = f"Result {idx+1}"
+                    try:
+                        if hasattr(r, 'exit_code'):
+                            label += f" (exit {r.exit_code})"
+                    except Exception:
+                        pass
+                    return label
+
+                options = [(make_label(i, r), i) for i, r in enumerate(chain)]
+                dropdown = widgets.Dropdown(
+                    options=options,
+                    value=len(chain) - 1,
+                    description='History:',
+                    style={'description_width': '90px'},
+                    layout=widgets.Layout(width='auto')
+                )
+
+                # Container to hold the currently selected result's tabs
+                selected_container = widgets.Box()
+
+                def update_selected(index: int):
+                    selected_widget = chain_widgets[index]
+                    selected_container.children = (selected_widget,)
+
+                def on_change(change):
+                    if change.get('name') == 'value' and change.get('type') == 'change':
+                        update_selected(change['new'])
+
+                dropdown.observe(on_change, names='value')
+                update_selected(len(chain) - 1)
+
+                # Compose final widget with dropdown on top
+                self.widget = widgets.VBox([dropdown, selected_container])
+                return
+
+        # Default: no chain selector, expose only this tab widget
+        self.widget = self.tab_widget
 
 
 

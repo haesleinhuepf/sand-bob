@@ -390,9 +390,9 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display)
     n_a = 0
     for n_a in range(n_feedback_iterations):
-        res.former_result = former_result
         dependencies = res.dependencies
         code_before = res.code
+        former_result = res
         #print("len code (bef):", len(res.code))
 
         #display(Markdown(f"# {n_a + 1}. Result"))
@@ -410,7 +410,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         if GOOD_CODE in feedback:
             if status_display is not None:
-                status_display.add_progress(n_feedback_iterations - 1 - n_a)
+                status_display.add_progress((n_feedback_iterations - 1 - n_a)*(n_codefix_attempts+1))
             break
 
         # incorporating feedback
@@ -422,10 +422,11 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         if res.code == code_before:
             print("Code did not change. Stopping.")
             if status_display is not None:
-                status_display.add_progress(n_feedback_iterations - 1 - n_a)
+                status_display.add_progress((n_feedback_iterations - 1 - n_a)*(n_codefix_attempts+1))
             break
 
         res.former_result = former_result
+
         former_result = res
 
 
