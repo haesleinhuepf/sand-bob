@@ -140,7 +140,7 @@ def fix_error_in_code(code, stdout, stderr):
     return extract_code(response)
 
 
-def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None):
+def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None):
     """
     Run the code and fix the dependencies or the code if needed.
 
@@ -150,6 +150,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
         input_host_path: The path to the input data on the host.
         input_container_path: The path to the input data in the container.
         n_codefix_attempts: The number of attempts to fix the dependencies or the code.
+        executor: Optional CodeExecutor instance to reuse.
     
     Returns:
         The result of the execution, the potentially fixed code, and all dependencies including potentially new ones.
@@ -170,9 +171,9 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
 
         #print(f"Executing with dependencies: {dependencies}")
         if is_notebook(code):
-            result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+            result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor)
         else:
-            result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+            result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor)
         
         if status_display is not None:
             status_display.add_progress(1)
@@ -230,7 +231,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
 
     return result
 
-def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None):
+def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None):
     """
     Generate a code snippet that runs the given prompt and checks if the output is as expected.
     """
@@ -264,7 +265,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
-                          n_codefix_attempts=n_codefix_attempts, status_display=status_display)
+                          n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor)
     result.prompt = prompt
     
     return result
@@ -348,7 +349,7 @@ And the result was:
     return messages
 
 
-def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None):
+def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None):
     res = generate_run(f"""
     Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
     Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
@@ -369,7 +370,7 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
 
     # Your task
     Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
-    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display)
+    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor)
     
     return res
 
@@ -379,15 +380,19 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
     from ._statusdisplay import StatusDisplay
+    from ._executor import CodeExecutor
     import time
 
     status_display = StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*2, status_text="Initializing...")
 
     start_time = time.time()
 
+    # Create a shared executor instance to reuse across iterations
+    executor = CodeExecutor()
+
     # code generation and execution
     former_result = None
-    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display)
+    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor)
     n_a = 0
     for n_a in range(n_feedback_iterations):
         dependencies = res.dependencies
@@ -415,7 +420,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         # incorporating feedback
         #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
-        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display)
+        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor)
 
         #print("len code (aft):", len(res.code))
 
@@ -433,16 +438,20 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
         status_display.update("Final touch")
-        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor)
         res.former_result = former_result
 
     status_display.update("")
     res.total_time = time.time() - start_time
     res.n_codefix_attempts = n_a + 1
+    
+    # Clean up the executor
+    executor.cleanup()
+    
     return res
 
 
-def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data"):
+def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None):
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
 
@@ -492,7 +501,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         notebook_str = notebook_str
 
     from ._executor import execute_notebook
-    res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
+    res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor)
 
     #feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
     #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
