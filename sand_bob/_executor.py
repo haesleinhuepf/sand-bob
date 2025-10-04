@@ -483,7 +483,8 @@ def execute(code: str, dependencies: List[str] = [],
             python_version="3.11", 
             base_image: Optional[str] = None, 
             timeout: int = 30, 
-            memory_limit: str = "512m") -> ExecutionResult:
+            memory_limit: str = "512m",
+            executor: Optional["CodeExecutor"] = None) -> ExecutionResult:
     """
     Execute code in a Docker container.
 
@@ -498,6 +499,7 @@ def execute(code: str, dependencies: List[str] = [],
         base_image: The base image to use (optional).
         timeout: The timeout for the execution (optional).
         memory_limit: The memory limit for the container (optional).
+        executor: Optional CodeExecutor instance to reuse (optional).
 
     Returns:
         The result of the execution.
@@ -514,7 +516,8 @@ def execute(code: str, dependencies: List[str] = [],
                      python_version=python_version,
                      base_image=base_image,
                      timeout=timeout,
-                     memory_limit=memory_limit)
+                     memory_limit=memory_limit,
+                     executor=executor)
 
 
 def execute_notebook(notebook_json: str, dependencies: List[str] = [], 
@@ -525,7 +528,8 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
                     python_version="3.11", 
                     base_image: Optional[str] = None, 
                     timeout: int = 30, 
-                    memory_limit: str = "512m") -> ExecutionResult:
+                    memory_limit: str = "512m",
+                    executor: Optional["CodeExecutor"] = None) -> ExecutionResult:
     """
     Execute a Jupyter notebook in a Docker container using nbconvert.
 
@@ -540,12 +544,16 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
         base_image: The base image to use (optional).
         timeout: The timeout for the execution (optional).
         memory_limit: The memory limit for the container (optional).
+        executor: Optional CodeExecutor instance to reuse (optional).
 
     Returns:
         The result of the execution.
     """
     from ._executor import CodeExecutor
-    _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit)
+    if executor is None:
+        _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit)
+    else:
+        _executor = executor
     return _executor.execute_notebook(notebook_json, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
 
 
@@ -591,6 +599,7 @@ class CodeExecutor:
             self.client = None
 
         self.containers = []
+        self.image_cache = {}  # Cache images by dependencies hash
         
     
     def execute_notebook(
@@ -670,7 +679,8 @@ class CodeExecutor:
                 container = self._build_and_run_container(
                     temp_dir, notebook_file, input_host_path, input_container_path, 
                     output_host_path, output_container_path,
-                    display_output_host_path, display_output_container_path
+                    display_output_host_path, display_output_container_path,
+                    dependencies
                 )
                 
                 self.containers.append(container.id)
@@ -853,17 +863,37 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
         output_host_path: Optional[str] = None, 
         output_container_path: str = "/output_data",
         display_output_host_path: Optional[str] = None,
-        display_output_container_path: str = "/display_output"
+        display_output_container_path: str = "/display_output",
+        dependencies: Optional[List[str]] = None
     ) -> docker.models.containers.Container:
         """Build and run the Docker container."""
-        # Build the image
+        # Create a cache key based on dependencies and base image
+        # Use a stable tag name for the same dependencies to leverage Docker layer caching
+        import hashlib
+        cache_key_parts = [self.base_image]
+        if dependencies:
+            cache_key_parts.extend(sorted(dependencies))
+        cache_key = hashlib.md5("_".join(cache_key_parts).encode()).hexdigest()
+        tag_name = f"sand-bob-{cache_key}"
+        
+        # Build the image - Docker will use layer cache for unchanged layers
+        # (base image, system packages, Python dependencies) even if notebook changed
         start_time = time.time()
-        image, _ = self.client.images.build(
+        image, build_logs = self.client.images.build(
             path=temp_dir,
-            tag=f"sand-bob-{int(time.time())}",
+            tag=tag_name,
             rm=True
         )
         self.build_time = time.time() - start_time
+        
+        # Track if this was mostly cached by checking build time
+        # Cached builds are typically much faster (<5s vs 30-60s)
+        if self.build_time < 5 and cache_key in self.image_cache:
+            # This was likely a cached build
+            pass
+        
+        # Store in cache for tracking
+        self.image_cache[cache_key] = image
         
         # Prepare container run parameters
         run_params = {
