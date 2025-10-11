@@ -71,7 +71,7 @@ Explain your modifications shortly.
 Avoid tables.
 """
 
-def determine_missing_dependencies(code, stdout, stderr):
+def determine_missing_dependencies(code, stdout, stderr, temperature=None):
     import json
     from sand_bob import WHITELIST_DEPENDENCIES, config
     from sand_bob._utilities import extract_code
@@ -96,7 +96,7 @@ def determine_missing_dependencies(code, stdout, stderr):
 
     #import time
     #start_time = time.time()
-    response = extract_code(config.prompt_function_determine_dependencies(prompt))
+    response = extract_code(config.prompt_function_determine_dependencies(prompt, temperature=temperature))
     #print(f"Prompt time taken (determine_missing_dependencies): {time.time() - start_time:.2f}s")
     #print("Response (json dependencies):", response)
     try:
@@ -108,7 +108,7 @@ def determine_missing_dependencies(code, stdout, stderr):
     return [dep for dep in missing_dependencies if dep in WHITELIST_DEPENDENCIES]
 
 
-def fix_error_in_code(code, stdout, stderr):
+def fix_error_in_code(code, stdout, stderr, temperature=None):
     from sand_bob import config
     from sand_bob._utilities import extract_code
     
@@ -133,14 +133,15 @@ def fix_error_in_code(code, stdout, stderr):
     """
     #import time
     #start_time = time.time()
-    response = extract_code(config.prompt_function_fix_code(prompt))
+    response = extract_code(config.prompt_function_fix_code(prompt, temperature=temperature))
+    
     #print(f"Prompt time taken (fix_error_in_code): {time.time() - start_time:.2f}s")
     #print("Response (code):", response)
 
     return extract_code(response)
 
 
-def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None):
+def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, temperature=None):
     """
     Run the code and fix the dependencies or the code if needed.
 
@@ -151,6 +152,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
         input_container_path: The path to the input data in the container.
         n_codefix_attempts: The number of attempts to fix the dependencies or the code.
         executor: Optional CodeExecutor instance to reuse.
+        temperature: Temperature parameter for LLM calls.
     
     Returns:
         The result of the execution, the potentially fixed code, and all dependencies including potentially new ones.
@@ -191,7 +193,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
             if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
                 if status_display is not None:
                     status_display.update(f"Determining missing dependencies...")
-                new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr)
+                new_dependencies = determine_missing_dependencies(code, result.stdout, result.stderr, temperature=temperature)
                 if status_display is not None:
                     status_display.add_progress(1)
 
@@ -207,7 +209,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
             
             if status_display is not None:
                 status_display.update(f"Fixing error in code... ")
-            new_code = fix_error_in_code(code, result.stdout, result.stderr)
+            new_code = fix_error_in_code(code, result.stdout, result.stderr, temperature=temperature)
             if status_display is not None:
                 status_display.add_progress(1)
 
@@ -231,7 +233,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
 
     return result
 
-def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None):
+def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None, temperature=None):
     """
     Generate a code snippet that runs the given prompt and checks if the output is as expected.
     """
@@ -251,7 +253,8 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
     
     if status_display is not None:
         status_display.update(f"Generating code...")
-    code = code + extract_code(config.prompt_function_generate_code(messages))
+    code = code + extract_code(config.prompt_function_generate_code(messages, temperature=temperature))
+
     #print(f"Prompt time taken (generate_run): {time.time() - start_time:.2f}s")
     if suffix_code:
         code += "\n" + suffix_code
@@ -265,13 +268,13 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
-                          n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor)
+                          n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, temperature=temperature)
     result.prompt = prompt
     
     return result
 
 
-def generate_code_feedback(code, list_of_objects=[], purpose=None):
+def generate_code_feedback(code, list_of_objects=[], purpose=None, temperature=None):
     from ._config import config
     
     if purpose is None:
@@ -306,7 +309,8 @@ If there are no improvements, simply say '{GOOD_CODE}' by the end.
 
     #import time
     #start_time = time.time()
-    res = config.prompt_function_generate_code_feedback(messages)
+    res = config.prompt_function_generate_code_feedback(messages, temperature=temperature)
+    
     #print(f"Prompt time taken (generate_code_feedback): {time.time() - start_time:.2f}s")
     return res
 
@@ -349,7 +353,7 @@ And the result was:
     return messages
 
 
-def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None):
+def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None, temperature=None):
     res = generate_run(f"""
     Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
     Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
@@ -370,12 +374,12 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
 
     # Your task
     Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
-    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor)
+    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, temperature=temperature)
     
     return res
 
 @parallel
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, initial_temperature=None, delta_temperature=None):
 
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
@@ -392,7 +396,11 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     # code generation and execution
     former_result = None
-    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor)
+    
+    # Calculate initial temperature for the first iteration
+    current_temperature = initial_temperature
+    
+    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, temperature=current_temperature)
     n_a = 0
     for n_a in range(n_feedback_iterations):
         dependencies = res.dependencies
@@ -402,10 +410,16 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         #display(Markdown(f"# {n_a + 1}. Result"))
         #display(res)
+        
+        # Calculate temperature for this iteration (decrease with each iteration, minimum 0)
+        if initial_temperature is not None and delta_temperature is not None:
+            current_temperature = max(0, initial_temperature - (n_a + 1) * delta_temperature)
+        else:
+            current_temperature = None
 
         # code inspection and feedback
         status_display.update(f"Generating feedback...")
-        feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
+        feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt, temperature=current_temperature)
         status_display.add_progress(1)
 
         
@@ -420,7 +434,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
         # incorporating feedback
         #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
-        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor)
+        res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, temperature=current_temperature)
 
         #print("len code (aft):", len(res.code))
 
@@ -438,7 +452,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
         status_display.update("Final touch")
-        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor)
+        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, temperature=current_temperature)
         res.former_result = former_result
 
     status_display.update("")
@@ -451,7 +465,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     return res
 
 
-def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None):
+def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None, temperature=None):
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
 
@@ -488,7 +502,8 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     Now convert the code into a beautiful Jupyter notebook in JSON format. No additional explanation is needed.
     """
 
-    notebook_str = config.prompt_function_notebook_conversion(prompt)
+    notebook_str = config.prompt_function_notebook_conversion(prompt, temperature=temperature)
+
 
     notebook_str = remove_outer_markdown(notebook_str)
     try:

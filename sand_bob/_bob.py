@@ -7,6 +7,8 @@ class Context:
     n_feedback_iterations: int = 1
     n_parallel: int = 1
     n_iterative: int = 1
+    initial_temperature: float = None
+    delta_temperature: float = 0.4
 
 @register_line_cell_magic
 def alice(line, cell=None):
@@ -20,7 +22,9 @@ def alice(line, cell=None):
                         n_codefix_attempts=Context.n_codefix_attempts,
                         n_feedback_iterations = Context.n_feedback_iterations,
                         n_parallel=Context.n_parallel,
-                        n_iterative=Context.n_iterative)
+                        n_iterative=Context.n_iterative,
+                        initial_temperature=Context.initial_temperature,
+                        delta_temperature=Context.delta_temperature)
     #print("="*100)
     display(res)
 
@@ -30,13 +34,17 @@ def initialize(input_host_path: str=None,
                n_codefix_attempts: int = 1,
                n_feedback_iterations: int = 1,
                n_parallel: int = 1,
-               n_iterative: int = 1):
+               n_iterative: int = 1,
+               initial_temperature: float = None,
+               delta_temperature: float = 0.4):
     Context.input_host_path = input_host_path
     Context.dependencies = dependencies
     Context.n_codefix_attempts = n_codefix_attempts
     Context.n_feedback_iterations = n_feedback_iterations
     Context.n_parallel = n_parallel
     Context.n_iterative = n_iterative
+    Context.initial_temperature = initial_temperature
+    Context.delta_temperature = delta_temperature
 
 
 def combine_user_input(line, cell):

@@ -1,5 +1,5 @@
 
-def prompt_ollama(message:str, model="gpt-oss:20b"):
+def prompt_ollama(message:str, model="gpt-oss:20b", temperature=None):
     """A prompt helper function that sends a message to ollama and returns only the text response."""
     import openai
     
@@ -8,10 +8,16 @@ def prompt_ollama(message:str, model="gpt-oss:20b"):
         
     # setup connection to the LLM
     client = openai.OpenAI(base_url = "http://localhost:11434/v1", api_key = "none")
-    response = client.chat.completions.create(
-        model=model,
-        messages=message
-    )
+    
+    # Prepare kwargs for the API call
+    kwargs = {
+        "model": model,
+        "messages": message
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    
+    response = client.chat.completions.create(**kwargs)
 
     # extract answer
     result = response.choices[0].message.content
@@ -20,7 +26,7 @@ def prompt_ollama(message:str, model="gpt-oss:20b"):
     return result
 
 
-def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b"):
+def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b", temperature=None):
 #def prompt_scadsai_llm(message:str, model="meta-llama/Llama-3.3-70B-Instruct"):
 #def prompt_scadsai_llm(message:str, model="deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"):
     """A prompt helper function that sends a message to ScaDS.AI LLM server at 
@@ -37,16 +43,22 @@ def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b"):
     client = openai.OpenAI(base_url="https://llm.scads.ai/v1",
                            api_key=os.environ.get('SCADSAI_API_KEY')
     )
-    response = client.chat.completions.create(
-        model=model,
-        messages=message
-    )
+    
+    # Prepare kwargs for the API call
+    kwargs = {
+        "model": model,
+        "messages": message
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    
+    response = client.chat.completions.create(**kwargs)
     
     # extract answer
     return response.choices[0].message.content
 
 
-def prompt_openai(message:str, model="gpt-5-mini"):
+def prompt_openai(message:str, model="gpt-5-mini", temperature=None):
     """A prompt helper function that sends a message to openAI
     and returns only the text response.
     """
@@ -59,17 +71,22 @@ def prompt_openai(message:str, model="gpt-5-mini"):
     # setup connection to the LLM
     client = openai.OpenAI()
     
+    # Prepare kwargs for the API call
+    kwargs = {
+        "model": model,
+        "messages": message
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    
     # submit prompt
-    response = client.chat.completions.create(
-        model=model,
-        messages=message
-    )
+    response = client.chat.completions.create(**kwargs)
     
     # extract answer
     return response.choices[0].message.content
 
 
-def prompt_kisski(message:str, model="openai-gpt-oss-120b"):
+def prompt_kisski(message:str, model="openai-gpt-oss-120b", temperature=None):
     """A prompt helper function that sends a message to LLM server of
     KISSKI / GWDG and returns only the text response.
     """
@@ -84,10 +101,16 @@ def prompt_kisski(message:str, model="openai-gpt-oss-120b"):
     client = openai.OpenAI(base_url="https://chat-ai.academiccloud.de/v1",
                            api_key=os.environ.get('KISSKI_API_KEY')
     )
-    response = client.chat.completions.create(
-        model=model,
-        messages=message
-    )
+    
+    # Prepare kwargs for the API call
+    kwargs = {
+        "model": model,
+        "messages": message
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    
+    response = client.chat.completions.create(**kwargs)
     
     # extract answer
     return response.choices[0].message.content
