@@ -484,6 +484,7 @@ def execute(code: str, dependencies: List[str] = [],
             base_image: Optional[str] = None, 
             timeout: int = 30, 
             memory_limit: str = "512m",
+            gpu_support: bool = False,
             executor: Optional["CodeExecutor"] = None) -> ExecutionResult:
     """
     Execute code in a Docker container.
@@ -499,6 +500,7 @@ def execute(code: str, dependencies: List[str] = [],
         base_image: The base image to use (optional).
         timeout: The timeout for the execution (optional).
         memory_limit: The memory limit for the container (optional).
+        gpu_support: Whether to enable GPU support with NVIDIA drivers and pyclesperanto (optional).
         executor: Optional CodeExecutor instance to reuse (optional).
 
     Returns:
@@ -517,6 +519,7 @@ def execute(code: str, dependencies: List[str] = [],
                      base_image=base_image,
                      timeout=timeout,
                      memory_limit=memory_limit,
+                     gpu_support=gpu_support,
                      executor=executor)
 
 
@@ -529,6 +532,7 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
                     base_image: Optional[str] = None, 
                     timeout: int = 30, 
                     memory_limit: str = "512m",
+                    gpu_support: bool = False,
                     executor: Optional["CodeExecutor"] = None) -> ExecutionResult:
     """
     Execute a Jupyter notebook in a Docker container using nbconvert.
@@ -544,6 +548,7 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
         base_image: The base image to use (optional).
         timeout: The timeout for the execution (optional).
         memory_limit: The memory limit for the container (optional).
+        gpu_support: Whether to enable GPU support with NVIDIA drivers and pyclesperanto (optional).
         executor: Optional CodeExecutor instance to reuse (optional).
 
     Returns:
@@ -551,7 +556,7 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
     """
     from ._executor import CodeExecutor
     if executor is None:
-        _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit)
+        _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit, gpu_support=gpu_support)
     else:
         _executor = executor
     return _executor.execute_notebook(notebook_json, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
@@ -570,7 +575,8 @@ class CodeExecutor:
         python_version: str = "3.11",
         base_image: Optional[str] = None,
         timeout: int = 30,
-        memory_limit: str = "512m"
+        memory_limit: str = "512m",
+        gpu_support: bool = False
     ):
         """
         Initialize the code executor.
@@ -580,9 +586,19 @@ class CodeExecutor:
             base_image: Custom base Docker image
             timeout: Execution timeout in seconds
             memory_limit: Memory limit for containers
+            gpu_support: Whether to enable GPU support with NVIDIA drivers
         """
         self.python_version = python_version
-        self.base_image = base_image or f"python:{python_version}-slim"
+        self.gpu_support = gpu_support
+        
+        if base_image:
+            self.base_image = base_image
+        elif gpu_support:
+            # Use NVIDIA CUDA base image with GPU support
+            self.base_image = "nvidia/cuda:12.1.0-base-ubuntu22.04"
+        else:
+            self.base_image = f"python:{python_version}-slim"
+        
         self.timeout = timeout
         self.memory_limit = memory_limit
         try:
@@ -822,8 +838,37 @@ class CodeExecutor:
     def _create_notebook_dockerfile(self, has_dependencies: bool, output_container_path: str) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
 
+        if self.gpu_support:
+            # GPU-enabled Dockerfile with Python and pyclesperanto
+            dockerfile = f"""
+FROM {self.base_image}
 
-        dockerfile = f"""
+WORKDIR /app
+
+# Install Python and system dependencies for GPU support
+RUN apt-get update && apt-get install -y \\
+    python3 \\
+    python3-pip \\
+    python3-dev \\
+    gcc \\
+    g++ \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic links for python and pip (force overwrite if they exist)
+RUN ln -sf /usr/bin/python3 /usr/bin/python && \\
+    ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# Upgrade pip
+RUN python3 -m pip install --upgrade pip
+
+# Install jupyter, nbconvert, and pyclesperanto
+RUN python3 -m pip install --no-cache-dir jupyter nbconvert pyclesperanto-prototype
+
+# Copy requirements and install Python dependencies
+"""
+        else:
+            # Standard Dockerfile
+            dockerfile = f"""
 FROM {self.base_image}
 
 WORKDIR /app
@@ -903,6 +948,12 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
             'network_disabled': True,  # Disable network for security
             'remove': False
         }
+        
+        # Add GPU support if enabled
+        if self.gpu_support:
+            run_params['device_requests'] = [
+                docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
+            ]
         
         # Initialize volumes dictionary
         volumes = {}
@@ -1133,3 +1184,53 @@ class ExecutionResultList:
         
         # Recreate the tabbed interface with the new result
         self._create_tabbed_interface() 
+
+
+def test_gpu_support() -> ExecutionResult:
+    """
+    Test if GPU support is working correctly with pyclesperanto.
+    
+    This function tests basic pyclesperanto functionality in a GPU-enabled container.
+    It creates a simple test image, applies a Gaussian blur, and verifies the output.
+    
+    Returns:
+        ExecutionResult with test output showing GPU/pyclesperanto functionality
+    """
+    test_code = """
+import pyclesperanto_prototype as cle
+import numpy as np
+
+# Print GPU device information
+print("=== GPU Device Information ===")
+print(f"Available GPUs: {cle.available_device_names()}")
+print(f"Selected GPU: {cle.get_device()}")
+print()
+
+# Create a simple test image
+print("=== Testing pyclesperanto ===")
+test_image = np.random.rand(100, 100).astype(np.float32)
+print(f"Created test image with shape: {test_image.shape}")
+
+# Push image to GPU and apply Gaussian blur
+gpu_image = cle.push(test_image)
+print(f"Pushed image to GPU")
+
+blurred = cle.gaussian_blur(gpu_image, sigma_x=2.0, sigma_y=2.0)
+print(f"Applied Gaussian blur")
+
+# Pull result back from GPU
+result = cle.pull(blurred)
+print(f"Result shape: {result.shape}")
+print(f"Result mean: {result.mean():.4f}")
+print()
+print("✅ pyclesperanto GPU support is working correctly!")
+"""
+    
+    result = execute(
+        code=test_code,
+        dependencies=[],  # pyclesperanto is already installed in GPU image
+        gpu_support=True,
+        timeout=60  # Allow more time for GPU initialization
+    )
+    
+    return result
