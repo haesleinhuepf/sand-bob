@@ -682,7 +682,12 @@ class CodeExecutor:
                     requirements_file = os.path.join(temp_dir, "requirements.txt")
                     with open(requirements_file, "w") as f:
                         for dep in dependencies:
-                            f.write(f"{dep}\n")
+                            # Replace generic cupy with CUDA-compatible version for GPU support
+                            if self.gpu_support and dep.strip().lower() == "cupy":
+                                # Use cupy-cuda12x for CUDA 12.x compatibility
+                                f.write("cupy-cuda12x\n")
+                            else:
+                                f.write(f"{dep}\n")
                     #print(f"Created requirements.txt with {dependencies}")
                 
                 # Create Dockerfile for notebook execution
@@ -872,8 +877,8 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \\
 # Upgrade pip
 RUN python3 -m pip install --upgrade pip
 
-# Install jupyter, nbconvert, and pyclesperanto
-RUN python3 -m pip install --no-cache-dir jupyter nbconvert pyclesperanto-prototype
+# Install jupyter and nbconvert
+RUN python3 -m pip install --no-cache-dir jupyter nbconvert
 
 # Copy requirements and install Python dependencies
 """
