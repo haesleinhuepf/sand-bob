@@ -594,8 +594,8 @@ class CodeExecutor:
         if base_image:
             self.base_image = base_image
         elif gpu_support:
-            # Use NVIDIA CUDA base image with GPU support
-            self.base_image = "nvidia/cuda:12.1.0-base-ubuntu22.04"
+            # Use NVIDIA CUDA runtime image with GPU support
+            self.base_image = "nvidia/cuda:12.4.0-runtime-ubuntu22.04"
         else:
             self.base_image = f"python:{python_version}-slim"
         
@@ -845,14 +845,25 @@ FROM {self.base_image}
 
 WORKDIR /app
 
-# Install Python and system dependencies for GPU support
+# Install Python, OpenCL, and system dependencies for GPU support
 RUN apt-get update && apt-get install -y \\
     python3 \\
     python3-pip \\
     python3-dev \\
     gcc \\
     g++ \\
+    ocl-icd-libopencl1 \\
+    ocl-icd-opencl-dev \\
+    opencl-headers \\
+    clinfo \\
     && rm -rf /var/lib/apt/lists/*
+
+# Create NVIDIA ICD file for OpenCL (runtime image should have the library)
+RUN mkdir -p /etc/OpenCL/vendors && \\
+    echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
+
+# Set library path to include NVIDIA libraries
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
 # Create symbolic links for python and pip (force overwrite if they exist)
 RUN ln -sf /usr/bin/python3 /usr/bin/python && \\
@@ -895,8 +906,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY notebook.ipynb .
 
 # Execute the notebook using nbconvert and save to file
-CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
 """
+        
+        if self.gpu_support:
+            # For GPU containers, run clinfo first to check GPU detection
+            dockerfile += f"""CMD ["/bin/bash", "-c", "echo '=== OpenCL Info ===' && clinfo | head -n 50 && echo '=== Starting Notebook Execution ===' && jupyter nbconvert --to notebook --execute notebook.ipynb --output {output_container_path}/notebook_executed.ipynb"]
+"""
+        else:
+            # Standard notebook execution
+            dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
+"""
+        
         return dockerfile
     
     def _build_and_run_container(
@@ -954,6 +974,11 @@ CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", 
             run_params['device_requests'] = [
                 docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
             ]
+            # Add NVIDIA environment variables for GPU access
+            run_params['environment'] = {
+                'NVIDIA_VISIBLE_DEVICES': 'all',
+                'NVIDIA_DRIVER_CAPABILITIES': 'compute,utility'
+            }
         
         # Initialize volumes dictionary
         volumes = {}
