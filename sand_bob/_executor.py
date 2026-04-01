@@ -41,6 +41,7 @@ class ExecutionResult:
     former_result: Optional["ExecutionResult"] = None
     render_inline: bool = True
     build_log: Optional[List[str]] = None
+    summary: Optional[str] = None
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -207,7 +208,9 @@ class ExecutionResult:
             # Basic info
             if self.final_result is not None:
                 details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
-            
+            if self.summary is not None:
+                details_html += f"<li><strong>Summary:</strong> {self.summary}</li>"
+                
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
             if self.build_time is not None:
                 details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
@@ -760,14 +763,14 @@ class CodeExecutor:
                 try:
                     result.objects[filename] = pd.read_csv(BytesIO(bytes(content)))
                 except Exception as e:
-                    warnings.warn(f"Error reading CSV file {filename}: {e} \n\n {str(content)}")
+                    # warnings.warn(f"Error reading CSV file {filename}: {e} \n\n {str(content)}")
                     result.objects[filename] = content
             elif filename.endswith(".json") or filename.endswith(".ipynb"):
                 import json
                 try:
                     result.objects[filename] = json.load(BytesIO(bytes(content)))
                 except Exception as e:
-                    warnings.warn(f"Error reading JSON file {filename}: {e} \n\n {str(content)}")
+                    # warnings.warn(f"Error reading JSON file {filename}: {e} \n\n {str(content)}")
                     result.objects[filename] = content
             elif filename.endswith(".jsonl"):
                 import json

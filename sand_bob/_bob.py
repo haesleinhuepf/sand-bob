@@ -7,6 +7,7 @@ class Context:
     n_feedback_iterations: int = 1
     n_parallel: int = 1
     n_iterative: int = 1
+    vary_algorithm: bool = False
 
 @register_line_cell_magic
 def alice(line, cell=None):
@@ -20,7 +21,8 @@ def alice(line, cell=None):
                         n_codefix_attempts=Context.n_codefix_attempts,
                         n_feedback_iterations = Context.n_feedback_iterations,
                         n_parallel=Context.n_parallel,
-                        n_iterative=Context.n_iterative)
+                        n_iterative=Context.n_iterative,
+                        vary_algorithm=Context.vary_algorithm)
     #print("="*100)
     display(res)
 
@@ -30,14 +32,15 @@ def initialize(input_host_path: str=None,
                n_codefix_attempts: int = 1,
                n_feedback_iterations: int = 1,
                n_parallel: int = 1,
-               n_iterative: int = 1):
+               n_iterative: int = 1,
+               vary_algorithm: bool = False):
     Context.input_host_path = input_host_path
     Context.dependencies = dependencies
     Context.n_codefix_attempts = n_codefix_attempts
     Context.n_feedback_iterations = n_feedback_iterations
     Context.n_parallel = n_parallel
     Context.n_iterative = n_iterative
-
+    Context.vary_algorithm = vary_algorithm 
 
 def combine_user_input(line, cell):
     if line and cell:

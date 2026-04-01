@@ -496,7 +496,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         notebook_str = fix_json(notebook_str)
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:
-        print(f"Error fixing json or erasing outputs of code cells: {e}")
+        #print(f"Error fixing json or erasing outputs of code cells: {e}")
         #with open("notebook_str.json", "w", encoding="utf-8") as f:
         #    f.write(notebook_str)
         notebook_str = notebook_str
@@ -517,3 +517,21 @@ def generate_code(*args, **kwargs):
     else:
         return result
 
+
+
+def summarize_code(code:str):
+
+    prompt = f"""
+You are an expert in python programming. You are given a python code snippet.
+Your task is to summarize the code in a bullet point list mentioning the names of the used core-algorithms.
+Stay concise, do not mention minor details, but focus on the core of what the code is doing and how it is doing it.
+
+# Code
+```
+{code}
+```
+# Summary
+"""
+
+    from ._config import config
+    return config.prompt_function_summarize_code(prompt)

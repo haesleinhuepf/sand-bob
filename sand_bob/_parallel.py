@@ -5,7 +5,6 @@ import threading
 from typing import Callable, Any, List, Union
 from ._statusdisplay import StatusDisplay
 
-
 def parallel(func: Callable) -> Callable:
     """
     A decorator that executes a function either once or multiple times based on the 'n_parallel' and 'n_iterative' parameters.
@@ -54,6 +53,7 @@ def parallel(func: Callable) -> Callable:
         # Extract parameters
         n_parallel = kwargs.pop('n_parallel', None)
         n_iterative = kwargs.pop('n_iterative', None)
+        vary_algorithm = kwargs.pop('vary_algorithm', False)
         
         # If neither parameter is specified, execute once
         if n_parallel is None and n_iterative is None:
@@ -86,19 +86,21 @@ def parallel(func: Callable) -> Callable:
             )
         
         # Combined parallel and iterative execution with continuous execution
-        return _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, status_display)
+        return _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, status_display, vary_algorithm=vary_algorithm)
     
     return wrapper
 
 
 
 
-def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, status_display):
+def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, status_display, vary_algorithm=False):
     """Execute function with both parallel and iterative execution.
     
     This starts new iterative executions as soon as parallel slots become available,
     rather than waiting for all parallel executions in an iteration to complete.
     """
+    from ._code_gen import summarize_code
+
     total_executions = n_parallel * n_iterative
     all_results = [None] * total_executions
     completed_count = 0
@@ -107,10 +109,19 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
     # Use a lock to protect shared state
     lock = threading.Lock()
     
-    def execute_and_track(execution_id):
+    def execute_and_track(execution_id, summaries=None):
         nonlocal completed_count
         try:
-            result = func(*copy.deepcopy(args), **copy.deepcopy(kwargs))
+            kwargs_copy = copy.deepcopy(kwargs)
+            if vary_algorithm:    
+                for k, v  in (kwargs_copy.items()):
+                    if k == "prompt":
+                        kwargs_copy[k] = f"{v}\n\nTry to avoid these algorithms: \n{summaries}"
+                        break
+
+            result = func(*copy.deepcopy(args), **kwargs_copy)
+            if vary_algorithm:
+                result.summary = summarize_code(result.code)
             with lock:
                 all_results[execution_id] = result
                 completed_count += 1
@@ -160,6 +171,17 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 break
     
     return all_results
+
+
+def collect_summaries(results):
+    """Collect summaries from a list of results, handling None values."""
+    summaries = []
+    for result in results:
+        if result is not None and hasattr(result, 'summary'):
+            summaries.append(result.summary)
+        else:
+            summaries.append(None)
+    return summaries
 
 
 # Usage example

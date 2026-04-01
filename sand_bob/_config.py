@@ -7,6 +7,7 @@ class Config:
         self.prompt_function_generate_code = prompt_scadsai_llm
         self.prompt_function_fix_code = prompt_scadsai_llm
         self.prompt_function_generate_code_feedback = prompt_scadsai_llm
+        self.prompt_function_summarize_code = prompt_scadsai_llm
         self.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model="meta-llama/Llama-4-Scout-17B-16E-Instruct")
     
 config = Config()
@@ -19,6 +20,7 @@ def config_openai(model: str="gpt-5-mini"):
     config.prompt_function_generate_code = partial(prompt_openai, model=model)
     config.prompt_function_fix_code = partial(prompt_openai, model=model)
     config.prompt_function_generate_code_feedback = partial(prompt_openai, model=model)
+    config.prompt_function_summarize_code = partial(prompt_openai, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_openai, model=model)
 
 def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-vl-72b-instruct"):
@@ -30,6 +32,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_generate_code = partial(prompt_kisski, model=model)
     config.prompt_function_fix_code = partial(prompt_kisski, model=model)
     config.prompt_function_generate_code_feedback = partial(prompt_kisski, model=vision_model)
+    config.prompt_function_summarize_code = partial(prompt_kisski, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
 
 def config_ollama(model: str="gemma3:4b"):
@@ -41,4 +44,5 @@ def config_ollama(model: str="gemma3:4b"):
     config.prompt_function_generate_code = partial(prompt_ollama, model=model)
     config.prompt_function_fix_code = partial(prompt_ollama, model=model)
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
+    config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
