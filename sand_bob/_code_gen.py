@@ -389,7 +389,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     start_time = time.time()
 
     # Create a shared executor instance to reuse across iterations
-    executor = CodeExecutor()
+    executor = CodeExecutor(gpu_support=gpu_support)
 
     # code generation and execution
     former_result = None

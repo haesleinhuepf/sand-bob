@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 import docker
-from docker.errors import DockerException
+from docker.errors import DockerException, BuildError
 import subprocess
 
 import ipywidgets as widgets
@@ -40,6 +40,7 @@ class ExecutionResult:
     total_time: Optional[float] = None
     former_result: Optional["ExecutionResult"] = None
     render_inline: bool = True
+    build_log: Optional[List[str]] = None
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -239,6 +240,16 @@ class ExecutionResult:
 
             if self.feedback:
                 details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.feedback}</pre></li>"
+            
+            if self.build_log:
+                build_log_text = '\n'.join(self.build_log)
+                # Truncate if too long (show first and last parts)
+                if len(build_log_text) > 10000:
+                    lines = self.build_log
+                    first_lines = '\n'.join(lines[:50])
+                    last_lines = '\n'.join(lines[-50:])
+                    build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
+                details_html += f"<li><strong>Build Log:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{build_log_text}</pre></li>"
             
             details_html += "</ul></div>"
             display(HTML(details_html))
@@ -616,6 +627,7 @@ class CodeExecutor:
 
         self.containers = []
         self.image_cache = {}  # Cache images by dependencies hash
+        self.build_log_output = []  # Store build logs for the current execution
         
     
     def execute_notebook(
@@ -949,11 +961,79 @@ COPY notebook.ipynb .
         # Build the image - Docker will use layer cache for unchanged layers
         # (base image, system packages, Python dependencies) even if notebook changed
         start_time = time.time()
-        image, build_logs = self.client.images.build(
-            path=temp_dir,
-            tag=tag_name,
-            rm=True
-        )
+        
+        # Process build logs to capture output (especially errors from pip install)
+        self.build_log_output = []
+        
+        try:
+            # Build without decode to get raw stream, we'll decode manually
+            image, build_logs = self.client.images.build(
+                path=temp_dir,
+                tag=tag_name,
+                rm=True
+            )
+            
+            # Process and log build output
+            # build_logs is a generator that yields log lines
+            for log_line in build_logs:
+                # Decode if bytes
+                if isinstance(log_line, bytes):
+                    log_line = log_line.decode('utf-8')
+                
+                # Try to parse as JSON to extract stream/error messages
+                try:
+                    import json
+                    log_dict = json.loads(log_line)
+                    
+                    if 'stream' in log_dict:
+                        msg = log_dict['stream'].rstrip()
+                        if msg:  # Only log non-empty lines
+                            self.build_log_output.append(msg)
+                    elif 'error' in log_dict:
+                        error_msg = log_dict['error']
+                        self.build_log_output.append(f"BUILD ERROR: {error_msg}")
+                except (json.JSONDecodeError, TypeError):
+                    # If not JSON, just store the raw line
+                    log_str = str(log_line).rstrip()
+                    if log_str:
+                        self.build_log_output.append(log_str)
+                    
+        except docker.errors.BuildError as e:
+            # Capture build logs from the exception
+            self.build_log_output.append("Docker build failed with error:")
+            if hasattr(e, 'build_log') and e.build_log:
+                for log_entry in e.build_log:
+                    if isinstance(log_entry, dict):
+                        if 'stream' in log_entry:
+                            log_line = log_entry['stream'].rstrip()
+                            if log_line:
+                                self.build_log_output.append(log_line)
+                        elif 'error' in log_entry:
+                            error_msg = log_entry['error']
+                            self.build_log_output.append(f"BUILD ERROR: {error_msg}")
+                    elif isinstance(log_entry, bytes):
+                        try:
+                            import json
+                            log_dict = json.loads(log_entry.decode('utf-8'))
+                            if 'stream' in log_dict:
+                                msg = log_dict['stream'].rstrip()
+                                if msg:
+                                    self.build_log_output.append(msg)
+                            elif 'error' in log_dict:
+                                error_msg = log_dict['error']
+                                self.build_log_output.append(f"BUILD ERROR: {error_msg}")
+                        except (json.JSONDecodeError, TypeError):
+                            msg = log_entry.decode('utf-8', errors='replace')
+                            self.build_log_output.append(msg)
+                    else:
+                        self.build_log_output.append(str(log_entry))
+            else:
+                self.build_log_output.append(str(e))
+            
+            # Re-raise with more context
+            full_log = '\n'.join(self.build_log_output)
+            raise Exception(f"Docker build failed. Build log:\n{full_log}") from e
+        
         self.build_time = time.time() - start_time
         
         # Track if this was mostly cached by checking build time
@@ -1060,7 +1140,8 @@ COPY notebook.ipynb .
                 execution_time=time.time() - start_time,
                 run_time=self.run_time,
                 build_time=self.build_time,
-                container_id=container.id
+                container_id=container.id,
+                build_log=self.build_log_output if self.build_log_output else None
             )
             
         except Exception as e:
@@ -1077,7 +1158,8 @@ COPY notebook.ipynb .
                 stderr=str(e),
                 exit_code=1,
                 execution_time=time.time() - start_time,
-                container_id=container.id if container else None
+                container_id=container.id if container else None,
+                build_log=self.build_log_output if self.build_log_output else None
             )
     
     def cleanup(self):
