@@ -6,7 +6,7 @@ class Config:
         self.prompt_function_determine_dependencies = prompt_scadsai_llm
         self.prompt_function_generate_code = prompt_scadsai_llm
         self.prompt_function_fix_code = prompt_scadsai_llm
-        self.prompt_function_generate_code_feedback = prompt_openai
+        self.prompt_function_generate_code_feedback = prompt_scadsai_llm
         self.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model="meta-llama/Llama-4-Scout-17B-16E-Instruct")
     
 config = Config()
