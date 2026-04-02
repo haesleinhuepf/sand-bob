@@ -469,37 +469,84 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         """
 
     prompt = f"""
-    You are an expert in python programming. You are given a python code snippet.
-    Your task is to convert the code into a beautiful Jupyter notebook in JSON format. Please take care of the following:
-    * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
-    * Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
-      * Do not split the code between figure creating and plotting. These things should stay in the same cell.
-      * NEVER split the code within functions, loops, conditions, etc.
-    * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
-    * Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
-    * Do not generate any output.
-    * Make sure the code still does the same thing as the original code.
+You are an expert in python programming. You are given a python code snippet.
+Your task is to convert the code into a beautiful Jupyter notebook in MystNB format. Please take care of the following:
+* At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
+* Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
+    * Do not split the code between figure creating and plotting. These things should stay in the same cell.
+    * NEVER split the code within functions, loops, conditions, etc.
+* Make sure the cells with substantial processing display their intermediate results by the end of the cell.
+* Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
+* Do not generate any output.
+* Make sure the code still does the same thing as the original code.
 
-    The code is:
-    ```
-    {code}
-    ```
-    {original_task_prompt}
+## Code
 
-    Now convert the code into a beautiful Jupyter notebook in JSON format. No additional explanation is needed.
+The code is:
+```
+{code}
+```
+
+## MystNB Notebook Syntax
+
+We are working with MystNB format, which is a markdown based syntax.
+
+Every notebook is structured like this:
+
+<notebook>
+---
+file_format: mystnb
+kernelspec:
+name: python3
+---
+# <Notebook title/>
+
+Initial  exlanation of what will be happening in the notebook.
+
+```{{code-cell}} ipython3
+<python code/>
+```
+
+Explanation of the following code.
+
+```{{code-cell}} ipython3
+<python code/>
+```
+
+Potentially more cells ...
+
+Final remarks.
+
+</notebook>
+
+## Original task
+
+{original_task_prompt}
+
+Now convert the code into a beautiful Jupyter notebook in MystNB format. No additional explanation is needed.
     """
+
+    print("prompt:", prompt)
 
     notebook_str = config.prompt_function_notebook_conversion(prompt)
 
+    notebook_str = notebook_str.split("<notebook>")[-1].split("</notebook>")[0]
+
+    print("result:", notebook_str)
+
     notebook_str = remove_outer_markdown(notebook_str)
     try:
-        notebook_str = fix_json(notebook_str)
+        #notebook_str = fix_json(notebook_str)
+
+        notebook_str = myst_nb_to_json(notebook_str)
+
         notebook_str = erase_outputs_of_code_cells(notebook_str)
     except Exception as e:
         #print(f"Error fixing json or erasing outputs of code cells: {e}")
         #with open("notebook_str.json", "w", encoding="utf-8") as f:
         #    f.write(notebook_str)
-        notebook_str = notebook_str
+        #notebook_str = notebook_str
+        pass
 
     from ._executor import execute_notebook
     res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
@@ -508,6 +555,12 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
 
     return res
+
+def myst_nb_to_json(myst_nb_str):
+    import jupytext
+    nb = jupytext.reads(myst_nb_str, fmt="myst")
+    ipynb_text = jupytext.writes(nb, fmt="ipynb")
+    return ipynb_text
 
 def generate_code(*args, **kwargs):
     from ._executor import ExecutionResultList
@@ -530,6 +583,7 @@ Stay concise, do not mention minor details, but focus on the core of what the co
 ```
 {code}
 ```
+
 # Summary
 """
 

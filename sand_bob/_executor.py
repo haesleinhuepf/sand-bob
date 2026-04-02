@@ -1225,9 +1225,13 @@ class ExecutionResultList:
     
     def _create_tabbed_interface(self):
         """Create the tabbed widget interface."""
-        # Create tab children (each tab will contain one ExecutionResult)
-        tab_children = []
-        
+        # Create tab children (overview + each execution result)
+        self.overview_output = widgets.Output()
+        self._populate_overview()
+
+        tab_children = [self.overview_output]
+        tab_titles = ["Overview"]
+
         for i, result in enumerate(self.results):
             if result is None:
                 continue
@@ -1242,6 +1246,10 @@ class ExecutionResultList:
             if hasattr(result, 'widget'):
                 tab_content = result.widget
                 tab_children.append(tab_content)
+                if i < len(self.tab_names):
+                    tab_titles.append(self.tab_names[i])
+                else:
+                    tab_titles.append(f"Result {i + 1}")
 
             result.render_inline = temp
         
@@ -1250,7 +1258,7 @@ class ExecutionResultList:
         self.tab_widget.children = tab_children
         
         # Set tab titles
-        for i, name in enumerate(self.tab_names):
+        for i, name in enumerate(tab_titles):
             self.tab_widget.set_title(i, name)
         
         # Add some styling to the tab widget
@@ -1258,6 +1266,224 @@ class ExecutionResultList:
             width='100%',
             height='auto'
         )
+
+    def _get_final_results(self) -> List[Any]:
+        """Collect non-empty final results from the list."""
+        collected = []
+        for result in self.results:
+            if result is None or not hasattr(result, 'final_result'):
+                continue
+            if result.final_result is not None:
+                collected.append(result.final_result)
+        return collected
+
+    def _classify_final_result(self, value: Any) -> str:
+        """Classify final_result values into broad visualization-friendly types."""
+        import numbers
+
+        if isinstance(value, bool):
+            return "other"
+        if isinstance(value, numbers.Number):
+            return "numeric"
+        if isinstance(value, str):
+            return "string"
+
+        value_type = type(value)
+        if value_type.__name__ == "DataFrame" and value_type.__module__.startswith("pandas"):
+            return "dataframe"
+
+        # Consider image-like arrays and PIL images as images.
+        if value_type.__module__.startswith("numpy") and hasattr(value, "ndim"):
+            if getattr(value, "ndim", 0) in (2, 3):
+                return "image"
+
+        if hasattr(value, "size") and hasattr(value, "mode") and value_type.__module__.startswith("PIL"):
+            return "image"
+
+        return "other"
+
+    def _dominant_result_type(self, values: List[Any]) -> str:
+        """Return the dominant result type among final results."""
+        type_counts = {
+            "numeric": 0,
+            "string": 0,
+            "image": 0,
+            "dataframe": 0,
+            "other": 0,
+        }
+
+        for value in values:
+            type_counts[self._classify_final_result(value)] += 1
+
+        dominant = max(type_counts, key=type_counts.get)
+        return dominant
+
+    def _render_word_cloud(self, text: str, title: str):
+        """Render a word cloud for text data with a fallback when wordcloud is unavailable."""
+        import matplotlib.pyplot as plt
+        from collections import Counter
+
+        cleaned = " ".join(str(text).split())
+        if not cleaned:
+            display(HTML("<p><em>No text available for word cloud.</em></p>"))
+            return
+
+        try:
+            from wordcloud import WordCloud
+
+            wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wc, interpolation="bilinear")
+            ax.axis("off")
+            ax.set_title(title)
+            display(fig)
+            plt.close(fig)
+            return
+        except Exception:
+            pass
+
+        # Fallback: simple frequency chart when wordcloud dependency is unavailable.
+        tokens = [t for t in cleaned.split(" ") if t]
+        token_counts = Counter(tokens).most_common(20)
+        if not token_counts:
+            display(HTML("<p><em>No tokens available for fallback frequency plot.</em></p>"))
+            return
+
+        labels = [item[0] for item in token_counts]
+        counts = [item[1] for item in token_counts]
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.barh(labels[::-1], counts[::-1], color="#4C72B0")
+        ax.set_title(f"{title} (fallback frequency chart)")
+        ax.set_xlabel("Frequency")
+        display(fig)
+        plt.close(fig)
+
+    def _render_numeric_histogram(self, values: List[Any]):
+        """Render a histogram for numeric final results."""
+        import matplotlib.pyplot as plt
+
+        numeric_values = []
+        for value in values:
+            if self._classify_final_result(value) == "numeric":
+                numeric_values.append(float(value))
+
+        if not numeric_values:
+            display(HTML("<p><em>No numeric values available for histogram.</em></p>"))
+            return
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+        bins = min(20, max(5, len(numeric_values)))
+        ax.hist(numeric_values, bins=bins, color="#2A9D8F", edgecolor="white")
+        ax.set_title("Distribution of final_result values")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Count")
+        display(fig)
+        plt.close(fig)
+
+    def _render_images_grid(self, values: List[Any]):
+        """Render image-like final results in a grid."""
+        import math
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        images = []
+        for value in values:
+            if self._classify_final_result(value) != "image":
+                continue
+
+            array_value = None
+            value_type = type(value)
+            if value_type.__module__.startswith("numpy"):
+                array_value = value
+            elif hasattr(value, "size") and hasattr(value, "mode") and value_type.__module__.startswith("PIL"):
+                array_value = np.array(value)
+
+            if array_value is not None:
+                images.append(array_value)
+
+        if not images:
+            display(HTML("<p><em>No image values available for image grid.</em></p>"))
+            return
+
+        n_images = len(images)
+        n_cols = min(4, n_images)
+        n_rows = math.ceil(n_images / n_cols)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(3.2 * n_cols, 3.2 * n_rows))
+        axes = np.array(axes).reshape(-1)
+
+        for idx, ax in enumerate(axes):
+            if idx < n_images:
+                ax.imshow(images[idx], cmap="gray" if images[idx].ndim == 2 else None)
+                ax.set_title(f"Result {idx + 1}")
+                ax.axis("off")
+            else:
+                ax.axis("off")
+
+        fig.suptitle("Image final_result overview", y=1.02)
+        fig.tight_layout()
+        display(fig)
+        plt.close(fig)
+
+    def _render_dataframe_columns_wordcloud(self, values: List[Any]):
+        """Render a word cloud based on DataFrame column names."""
+        columns = []
+        for value in values:
+            if self._classify_final_result(value) == "dataframe":
+                try:
+                    columns.extend([str(c) for c in list(value.columns)])
+                except Exception:
+                    continue
+
+        if not columns:
+            display(HTML("<p><em>No DataFrame columns found.</em></p>"))
+            return
+
+        self._render_word_cloud(" ".join(columns), "DataFrame column names")
+
+    def _populate_overview(self):
+        """Populate overview tab with adaptive visualization of final_result values."""
+        with self.overview_output:
+            self.overview_output.clear_output(wait=True)
+
+            final_results = self._get_final_results()
+            if not final_results:
+                display(HTML("<div><h4>Overview</h4><p><em>No non-empty final_result values available.</em></p></div>"))
+                return
+
+            type_counts = {
+                "numeric": 0,
+                "string": 0,
+                "image": 0,
+                "dataframe": 0,
+                "other": 0,
+            }
+            for value in final_results:
+                type_counts[self._classify_final_result(value)] += 1
+
+            dominant_type = self._dominant_result_type(final_results)
+
+            summary_html = (
+                "<div><h4>Overview</h4>"
+                f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
+                f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
+                f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
+                f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
+                "</div>"
+            )
+            display(HTML(summary_html))
+
+            if dominant_type == "numeric":
+                self._render_numeric_histogram(final_results)
+            elif dominant_type == "string":
+                joined_text = " ".join([str(v) for v in final_results if self._classify_final_result(v) == "string"])
+                self._render_word_cloud(joined_text, "Word cloud of final_result text")
+            elif dominant_type == "image":
+                self._render_images_grid(final_results)
+            elif dominant_type == "dataframe":
+                self._render_dataframe_columns_wordcloud(final_results)
+            else:
+                preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
+                display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
     
     def display(self):
         """Display the tabbed interface."""
