@@ -1,3 +1,5 @@
+from sand_bob._utilities import remove_outer_markdown
+
 from ._parallel import parallel
 
 
@@ -13,6 +15,7 @@ Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
 * Use the following libraries when necessary: {dependencies_str}
+* pip install is STRICTLY PROHIBITED. You can only use the libraries mentioned above.
 * Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
 * Final result output (print or display calls): 
   * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
@@ -77,21 +80,21 @@ def determine_missing_dependencies(code, stdout, stderr):
     from sand_bob._utilities import extract_code
 
     prompt = f"""
-    You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
-    Your task is to determine the missing dependencies that are required to run the code. This list could also be empty.
-    The code is:
-    ```python
-    {code}
-    ```
-    The traceback is:
-    ```
-    {stdout}
-    ```
-    The error message is:
-    ```
-    {stderr}
-    ```
-    Return the missing dependencies in a JSON list and nothing else.
+You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
+Your task is to determine the missing dependencies that are required to run the code. This list could also be empty.
+The code is:
+```python
+{code}
+```
+The traceback is:
+```
+{stdout}
+```
+The error message is:
+```
+{stderr}
+```
+Return the missing dependencies in a JSON list and nothing else.
     """
 
     #import time
@@ -113,23 +116,23 @@ def fix_error_in_code(code, stdout, stderr):
     from sand_bob._utilities import extract_code
     
     prompt = f"""
-    You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
-    Your task is to determine the new code that is required to fix the error.
-    Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
+You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
+Your task is to determine the new code that is required to fix the error.
+Make sure to keep the code format. 
     
-    The code is:
-    ```
-    {code}
-    ```
-    The traceback is:
-    ```
-    {stdout}
-    ```
-    The error message is:
-    ```
-    {stderr}
-    ```
-    Return the new code and nothing else.
+The code is:
+```
+{code}
+```
+The traceback is:
+```
+{stdout}
+```
+The error message is:
+```
+{stderr}
+```
+Return the new code and nothing else.
     """
     #import time
     #start_time = time.time()
@@ -137,10 +140,10 @@ def fix_error_in_code(code, stdout, stderr):
     #print(f"Prompt time taken (fix_error_in_code): {time.time() - start_time:.2f}s")
     #print("Response (code):", response)
 
-    return extract_code(response)
+    return extract_code(response), prompt
 
 
-def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, gpu_support=False):
+def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, gpu_support=False):
     """
     Run the code and fix the dependencies or the code if needed.
 
@@ -175,7 +178,8 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
             result = execute_notebook(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
-        
+        result.prompt = prompt
+
         if status_display is not None:
             status_display.add_progress(1)
 
@@ -208,7 +212,7 @@ def run_auto_fix(code, dependencies=[], input_host_path=None, input_container_pa
             
             if status_display is not None:
                 status_display.update(f"Fixing error in code... ")
-            new_code = fix_error_in_code(code, result.stdout, result.stderr)
+            new_code, prompt = fix_error_in_code(code, result.stdout, result.stderr)
             if status_display is not None:
                 status_display.add_progress(1)
 
@@ -245,8 +249,11 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
         code = ""
     #import time
     #start_time = time.time()
+
+    system_prompt = system_prompt_code_generation("/display_output")
+
     messages = [
-        {"role": "system", "content": system_prompt_code_generation("/display_output")},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
         ]
     
@@ -262,12 +269,12 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
 
     #print("input_host_path:", input_host_path)
 
-    result = run_auto_fix(code, 
+    result = run_auto_fix(code, prompt=system_prompt + "\n\n" + prompt,
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
                           n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, gpu_support=gpu_support)
-    result.prompt = prompt
+    #result.prompt = system_prompt + "\n\n" + prompt
     
     return result
 
@@ -353,7 +360,7 @@ And the result was:
 def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None, gpu_support=False):
     res = generate_run(f"""
     Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
-    Make sure to keep the code format. E.g. if it was a Jupyter notebook in JSON format, keep it a Jupyter notebook in JSON format.
+    Make sure to keep the code format.
 
     # Task
                        
@@ -394,6 +401,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     # code generation and execution
     former_result = None
     res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, gpu_support=gpu_support)
+    
     n_a = 0
     for n_a in range(n_feedback_iterations):
         dependencies = res.dependencies
@@ -469,7 +477,7 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
         """
 
     prompt = f"""
-You are an expert in python programming. You are given a python code snippet.
+You are an expert in python programming. You are given some functional python code.
 Your task is to convert the code into a beautiful Jupyter notebook in MystNB format. Please take care of the following:
 * At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
 * Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
@@ -478,6 +486,8 @@ Your task is to convert the code into a beautiful Jupyter notebook in MystNB for
 * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
 * Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
 * Do not generate any output.
+* Use the following libraries when necessary: {dependencies_str}
+* Do not introduce any new code or any new dependencies.
 * Make sure the code still does the same thing as the original code.
 
 ## Code
@@ -494,14 +504,8 @@ We are working with MystNB format, which is a markdown based syntax.
 Every notebook is structured like this:
 
 <notebook>
----
-file_format: mystnb
-kernelspec:
-name: python3
----
-# <Notebook title/>
 
-Initial  exlanation of what will be happening in the notebook.
+Initial exlanation of what will be happening in the notebook.
 
 ```{{code-cell}} ipython3
 <python code/>
@@ -526,30 +530,48 @@ Final remarks.
 Now convert the code into a beautiful Jupyter notebook in MystNB format. No additional explanation is needed.
     """
 
-    print("prompt:", prompt)
+    #print("prompt:", prompt)
 
     notebook_str = config.prompt_function_notebook_conversion(prompt)
-
+    #notebook_str = remove_outer_markdown(notebook_str)
+    if "```markdown" in notebook_str:
+        notebook_str = "```markdown".join(notebook_str.split("```markdown")[1:])
+        notebook_str = "```".join(notebook_str.split("```")[:-1])
     notebook_str = notebook_str.split("<notebook>")[-1].split("</notebook>")[0]
+    notebook_str = notebook_str.replace("```python", "```{{code-cell}} ipython3")
 
-    print("result:", notebook_str)
+    notebook_str = """---
+kernelspec:
+  name: python3
+  display_name: python3
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: '0.13'
+    jupytext_version: 1.13.8
+---
+""" + notebook_str
 
-    notebook_str = remove_outer_markdown(notebook_str)
-    try:
+    #print("result:", notebook_str)
+
+    
+    #try:
         #notebook_str = fix_json(notebook_str)
 
-        notebook_str = myst_nb_to_json(notebook_str)
+        #notebook_str = myst_nb_to_json(notebook_str)
 
-        notebook_str = erase_outputs_of_code_cells(notebook_str)
-    except Exception as e:
+        #notebook_str = erase_outputs_of_code_cells(notebook_str)
+    #except Exception as e:
         #print(f"Error fixing json or erasing outputs of code cells: {e}")
         #with open("notebook_str.json", "w", encoding="utf-8") as f:
         #    f.write(notebook_str)
         #notebook_str = notebook_str
-        pass
+        #pass
 
     from ._executor import execute_notebook
-    res = execute_notebook(notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
+    res = execute_notebook(notebook_mystnb=notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
+    res.prompt = prompt
 
     #feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
     #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)

@@ -29,6 +29,7 @@ class ExecutionResult:
     run_time: Optional[float] = None
     build_time: Optional[float] = None
     container_id: Optional[str] = None
+    prompt: Optional[str] = None
     code: Optional[str] = None
     dependencies: Optional[List[str]] = None
     traceback: Optional[str] = None
@@ -90,6 +91,7 @@ class ExecutionResult:
         self.stdout_output = widgets.Output()
         self.stderr_output = widgets.Output()
         self.code_output = widgets.Output()
+        self.prompt_output = widgets.Output()
         self.output_display = widgets.Output()
         
         # Create save notebook output if notebook file exists
@@ -100,8 +102,8 @@ class ExecutionResult:
             self._populate_save_notebook()
         
         # Create tab children in the specified order: output, code, details, stdout, stderr, save notebook
-        tab_children = [self.output_display, self.code_output, self.details_output, self.stdout_output, self.stderr_output]
-        tab_titles = ["Output", "Code", "Details", "StdOut", "StdErr"]
+        tab_children = [self.output_display, self.code_output, self.prompt_output, self.details_output, self.stdout_output, self.stderr_output]
+        tab_titles = ["Output", "Code", "Prompt", "Details", "StdOut", "StdErr"]
         
         # Add save notebook tab if it exists
         if self.save_notebook_output:
@@ -125,6 +127,7 @@ class ExecutionResult:
         # Populate all tabs immediately for this result
         self._populate_output()
         self._populate_code()
+        self._populate_prompt()
         self._populate_details()
         self._populate_stdout()
         self._populate_stderr()
@@ -304,6 +307,16 @@ class ExecutionResult:
                     display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
                 display(HTML("<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+
+    def _populate_prompt(self):
+        """Populate the prompt section."""
+        with self.prompt_output:
+            self.prompt_output.clear_output(wait=True)
+            if self.prompt:
+                display(HTML(f"<div><h4>Prompt</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.prompt}</pre></div>"))
+            else:
+                display(HTML("<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"))
+
 
     def _populate_output(self):
         """Populate the output section."""
@@ -520,10 +533,11 @@ def execute(code: str, dependencies: List[str] = [],
     Returns:
         The result of the execution.
     """
-    from ._utilities import python_code_to_notebook
-    notebook_json = python_code_to_notebook(code)
+    from ._utilities import python_code_to_mystnb
+    notebook_mystnb = python_code_to_mystnb(code)
 
-    return execute_notebook(notebook_json, 
+    return execute_notebook(
+                     notebook_mystnb=notebook_mystnb, 
                      dependencies=dependencies, 
                      input_host_path=input_host_path, 
                      input_container_path=input_container_path, 
@@ -537,7 +551,9 @@ def execute(code: str, dependencies: List[str] = [],
                      executor=executor)
 
 
-def execute_notebook(notebook_json: str, dependencies: List[str] = [], 
+def execute_notebook(notebook_json: Optional[str] = None, 
+                     notebook_mystnb: Optional[str] = None,
+                    dependencies: List[str] = [], 
                     input_host_path: Optional[str] = None, 
                     input_container_path: str = "/input_data",
                     output_host_path: Optional[str] = None, 
@@ -553,6 +569,7 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
 
     Args:
         notebook_json: The notebook JSON string to execute.
+        notebook_mystnb: The notebook in mystnb format to execute (alternative to notebook_json).
         dependencies: The dependencies to install.
         input_host_path: Optional path to the directory on the host to mount as read-only input.
         input_container_path: Path inside the container where the input volume will be mounted.
@@ -573,7 +590,12 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
         _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit, gpu_support=gpu_support)
     else:
         _executor = executor
-    return _executor.execute_notebook(notebook_json, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
+    if notebook_json is None and notebook_mystnb is not None:
+        res = _executor.execute_notebook(notebook_mystnb, notebook_filename="notebook.mystnb", dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, output_host_path=output_host_path, output_container_path=output_container_path)
+    else:
+        res = _executor.execute_notebook(notebook_json, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, output_host_path=output_host_path, output_container_path=output_container_path)
+    
+    return res
 
 
 class CodeExecutor:
@@ -635,8 +657,9 @@ class CodeExecutor:
     
     def execute_notebook(
         self, 
-        notebook_json: str, 
-        dependencies: List[str], 
+        notebook_content: str,
+        notebook_filename:str = "notebook.ipynb",
+        dependencies: List[str] = [], 
         input_host_path: Optional[str] = None, 
         input_container_path: str = "/input_data",
         output_host_path: Optional[str] = None, 
@@ -646,7 +669,8 @@ class CodeExecutor:
         Execute a Jupyter notebook in a Docker container using nbconvert.
         
         Args:
-            notebook_json: Jupyter notebook JSON string to execute
+            notebook_content: Jupyter notebook JSON or mystnb string to execute
+            notebook_filename: The filename to use for the notebook inside the container ending with .md, .mystnb, or .ipynb
             dependencies: List of Python package dependencies
             input_host_path: Optional path to the directory on the host to mount as read-only input
             input_container_path: Path inside the container where the input volume will be mounted
@@ -685,57 +709,72 @@ class CodeExecutor:
             display_output_container_path = "/display_output"
             os.makedirs(display_output_host_path, exist_ok=True)
 
-            try:
-                # Write notebook JSON to a file
-                notebook_file = os.path.join(temp_dir, "notebook.ipynb")
-                with open(notebook_file, "w", encoding="utf-8") as f:
-                    f.write(notebook_json)
-                
-                # Create requirements.txt if dependencies exist
-                requirements_file = None
-                if dependencies:
-                    requirements_file = os.path.join(temp_dir, "requirements.txt")
-                    with open(requirements_file, "w") as f:
-                        for dep in dependencies:
-                            # Replace generic cupy with CUDA-compatible version for GPU support
-                            if self.gpu_support and dep.strip().lower() == "cupy":
-                                # Use cupy-cuda12x for CUDA 12.x compatibility
-                                f.write("cupy-cuda12x\n")
-                            else:
-                                f.write(f"{dep}\n")
-                    #print(f"Created requirements.txt with {dependencies}")
-                
-                # Create Dockerfile for notebook execution
-                dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None, display_output_container_path)
-                dockerfile_path = os.path.join(temp_dir, "Dockerfile")
-                with open(dockerfile_path, "w") as f:
-                    f.write(dockerfile_content)
-                
-                # Build and run container
-                container = self._build_and_run_container(
-                    temp_dir, notebook_file, input_host_path, input_container_path, 
-                    output_host_path, output_container_path,
-                    display_output_host_path, display_output_container_path,
-                    dependencies
-                )
-                
-                self.containers.append(container.id)
-                
-                # Get execution results
-                result = self._get_execution_result(container, start_time)
-                                    
-            except Exception as e:
+            if "pip install" not in notebook_content and "pip3 install" not in notebook_content:
+                try:
+                    # Write notebook JSON to a file
+                    notebook_file = os.path.join(temp_dir, notebook_filename)
+                    with open(notebook_file, "w", encoding="utf-8") as f:
+                        f.write(notebook_content)
+                    
+                    # Create requirements.txt if dependencies exist
+                    requirements_file = None
+                    if dependencies:
+                        requirements_file = os.path.join(temp_dir, "requirements.txt")
+                        with open(requirements_file, "w") as f:
+                            for dep in dependencies:
+                                # Replace generic cupy with CUDA-compatible version for GPU support
+                                if self.gpu_support and dep.strip().lower() == "cupy":
+                                    # Use cupy-cuda12x for CUDA 12.x compatibility
+                                    f.write("cupy-cuda12x\n")
+                                else:
+                                    f.write(f"{dep}\n")
+                        #print(f"Created requirements.txt with {dependencies}")
+                    
+                    # Create Dockerfile for notebook execution
+                    dockerfile_content = self._create_notebook_dockerfile(
+                        has_dependencies=requirements_file is not None, 
+                        output_container_path=display_output_container_path, 
+                        notebook_filename=notebook_filename)
+                    dockerfile_path = os.path.join(temp_dir, "Dockerfile")
+                    with open(dockerfile_path, "w") as f:
+                        f.write(dockerfile_content)
+                    
+                    # Build and run container
+                    container = self._build_and_run_container(
+                        temp_dir, notebook_file, input_host_path, input_container_path, 
+                        output_host_path, output_container_path,
+                        display_output_host_path, display_output_container_path,
+                        dependencies
+                    )
+                    
+                    self.containers.append(container.id)
+                    
+                    # Get execution results
+                    result = self._get_execution_result(container, start_time)
+                                        
+                except Exception as e:
+                    import traceback
+                    # Return error result
+                    result = ExecutionResult(
+                        stdout="",
+                        stderr=str(e),
+                        exit_code=1,
+                        execution_time=time.time() - start_time,
+                        traceback=traceback.format_exc()
+                    )
+            else:
                 import traceback
                 # Return error result
                 result = ExecutionResult(
-                    stdout="",
-                    stderr=str(e),
+                    stdout="pip install is prohibited in this environment.",
+                    stderr="pip install is prohibited in this environment.",
                     exit_code=1,
                     execution_time=time.time() - start_time,
-                    traceback=traceback.format_exc()
+                    traceback=""
                 )
         
-            result.code = notebook_json
+            result.code = notebook_content
+            
             result.dependencies = dependencies
 
             # add files in output directory to result
@@ -855,7 +894,7 @@ class CodeExecutor:
         return result
 
     
-    def _create_notebook_dockerfile(self, has_dependencies: bool, output_container_path: str) -> str:
+    def _create_notebook_dockerfile(self, notebook_filename:str, has_dependencies: bool, output_container_path: str) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
 
         if self.gpu_support:
@@ -893,7 +932,7 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \\
 RUN python3 -m pip install --upgrade pip
 
 # Install jupyter and nbconvert
-RUN python3 -m pip install --no-cache-dir jupyter nbconvert
+RUN python3 -m pip install --no-cache-dir jupyter nbconvert jupytext 
 
 # Copy requirements and install Python dependencies
 """
@@ -910,7 +949,7 @@ RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/*
 
 # Install jupyter and nbconvert
-RUN pip install --no-cache-dir jupyter nbconvert
+RUN pip install --no-cache-dir jupyter nbconvert jupytext
 
 # Copy requirements and install Python dependencies
 """
@@ -923,18 +962,23 @@ RUN pip install --no-cache-dir -r requirements.txt
         
         dockerfile += f"""
 # Copy the notebook file
-COPY notebook.ipynb .
+COPY {notebook_filename} .
 
 # Execute the notebook using nbconvert and save to file
 """
         
-        if self.gpu_support:
-            # For GPU containers, run clinfo first to check GPU detection
-            dockerfile += f"""CMD ["/bin/bash", "-c", "echo '=== OpenCL Info ===' && clinfo | head -n 50 && echo '=== Starting Notebook Execution ===' && jupyter nbconvert --to notebook --execute notebook.ipynb --output {output_container_path}/notebook_executed.ipynb"]
+        # notebook conversion for mystnb or markdown files
+        if notebook_filename.endswith(".mystnb") or notebook_filename.endswith(".md"):
+            # If it's a mystnb file, convert to ipynb first
+            dockerfile += f"""RUN jupytext --to notebook {notebook_filename} -o notebook.ipynb
 """
-        else:
-            # Standard notebook execution
-            dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
+            
+        elif notebook_filename != "notebook.ipynb":
+            dockerfile += f"""COPY {notebook_filename} notebook.ipynb
+"""
+
+        # Standard notebook execution
+        dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
 """
         
         return dockerfile
@@ -1136,6 +1180,10 @@ COPY notebook.ipynb .
                 # Container might already be removed, ignore the error
                 pass
             
+            nb_exec_error_delimiter = "nbclient.exceptions.CellExecutionError: "
+            if nb_exec_error_delimiter in stdout:
+                stdout = stdout.split(nb_exec_error_delimiter)[-1]
+
             return ExecutionResult(
                 stdout=stdout,
                 stderr=stderr,
