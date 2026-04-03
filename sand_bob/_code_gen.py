@@ -105,7 +105,7 @@ Return the missing dependencies in a JSON list and nothing else.
     try:
         missing_dependencies = json.loads(response)
     except Exception as e:
-        print(f"Error loading dependencies: {e} \n\n {response}")
+        #print(f"Error loading dependencies: {e} \n\n {response}")
         missing_dependencies = []
 
     return [dep for dep in missing_dependencies if dep in WHITELIST_DEPENDENCIES]
@@ -434,7 +434,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #print("len code (aft):", len(res.code))
 
         if res.code == code_before:
-            print("Code did not change. Stopping.")
+            #print("Code did not change. Stopping.")
             if status_display is not None:
                 status_display.add_progress((n_feedback_iterations - 1 - n_a)*(n_codefix_attempts+1))
             break

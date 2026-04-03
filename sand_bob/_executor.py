@@ -1572,7 +1572,33 @@ class ExecutionResultList:
         self.tab_names.append(tab_name)
         
         # Recreate the tabbed interface with the new result
-        self._create_tabbed_interface() 
+        self._create_tabbed_interface()
+
+    @property
+    def consistency(self) -> float:
+        """Return the consistency of the results.
+        
+        Consistency is defined as the maximum count of any identical final_result
+        divided by the total number of results. Returns 0.0 if there are no results.
+        """
+        if not self.results:
+            return 0.0
+
+        counts = {}
+        for result in self.results:
+            value = result.final_result if hasattr(result, 'final_result') else None
+            if value is not None:
+                try:
+                    key = value
+                    hash(key)
+                except TypeError:
+                    key = id(value)
+                counts[key] = counts.get(key, 0) + 1
+
+        try:
+            return max(counts.values()) / len(self.results)
+        except ValueError:
+            return 0.0
 
 
 def test_gpu_support() -> ExecutionResult:
