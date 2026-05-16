@@ -35,7 +35,33 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_summarize_code = partial(prompt_kisski, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
 
-def config_ollama(model: str="gemma3:4b"):
+def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="meta-llama/Llama-4-Scout-17B-16E-Instruct"):
+    from ._config import config
+    from functools import partial
+    from ._endpoints import prompt_scadsai_llm
+    
+    config.prompt_function_determine_dependencies = partial(prompt_scadsai_llm, model=model)
+    config.prompt_function_generate_code = partial(prompt_scadsai_llm, model=model)
+    config.prompt_function_fix_code = partial(prompt_scadsai_llm, model=model)
+    config.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model=vision_model)
+    config.prompt_function_summarize_code = partial(prompt_scadsai_llm, model=model)
+    config.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model=model)
+
+
+def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str="vllm-llama-4-scout-17b-16e-instruct", notebook_conversion_model: str="vllm-llama-3-3-nemotron-super-49b-v1"):
+    from ._config import config
+    from functools import partial
+    from ._endpoints import prompt_kiara
+    
+    config.prompt_function_determine_dependencies = partial(prompt_kiara, model=model)
+    config.prompt_function_generate_code = partial(prompt_kiara, model=model)
+    config.prompt_function_fix_code = partial(prompt_kiara, model=model)
+    config.prompt_function_generate_code_feedback = partial(prompt_kiara, model=vision_model)
+    config.prompt_function_summarize_code = partial(prompt_kiara, model=model)
+    config.prompt_function_notebook_conversion = partial(prompt_kiara, model=notebook_conversion_model)
+
+
+def config_ollama(model: str="qwen2.5-coder:3b"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_ollama
@@ -46,3 +72,4 @@ def config_ollama(model: str="gemma3:4b"):
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
     config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
+

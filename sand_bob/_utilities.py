@@ -116,6 +116,30 @@ def erase_outputs_of_code_cells(notebook_file_content: str):
     notebook_file_content = json.dumps(notebook, indent=1)
     return notebook_file_content
 
+def python_code_to_mystnb(python_code: str):
+    """
+    Convert a Python code string to a MyST notebook.
+    """
+
+    return f"""---
+kernelspec:
+  name: python3
+  display_name: python3
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: '0.13'
+    jupytext_version: 1.13.8
+---
+
+```{{code-cell}} ipython3
+{python_code}
+```
+
+"""
+
+
 
 def python_code_to_notebook(python_code: str):
     """

@@ -29,6 +29,7 @@ class ExecutionResult:
     run_time: Optional[float] = None
     build_time: Optional[float] = None
     container_id: Optional[str] = None
+    prompt: Optional[str] = None
     code: Optional[str] = None
     dependencies: Optional[List[str]] = None
     traceback: Optional[str] = None
@@ -90,6 +91,7 @@ class ExecutionResult:
         self.stdout_output = widgets.Output()
         self.stderr_output = widgets.Output()
         self.code_output = widgets.Output()
+        self.prompt_output = widgets.Output()
         self.output_display = widgets.Output()
         
         # Create save notebook output if notebook file exists
@@ -100,8 +102,8 @@ class ExecutionResult:
             self._populate_save_notebook()
         
         # Create tab children in the specified order: output, code, details, stdout, stderr, save notebook
-        tab_children = [self.output_display, self.code_output, self.details_output, self.stdout_output, self.stderr_output]
-        tab_titles = ["Output", "Code", "Details", "StdOut", "StdErr"]
+        tab_children = [self.output_display, self.code_output, self.prompt_output, self.details_output, self.stdout_output, self.stderr_output]
+        tab_titles = ["Output", "Code", "Prompt", "Details", "StdOut", "StdErr"]
         
         # Add save notebook tab if it exists
         if self.save_notebook_output:
@@ -125,6 +127,7 @@ class ExecutionResult:
         # Populate all tabs immediately for this result
         self._populate_output()
         self._populate_code()
+        self._populate_prompt()
         self._populate_details()
         self._populate_stdout()
         self._populate_stderr()
@@ -304,6 +307,16 @@ class ExecutionResult:
                     display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
             else:
                 display(HTML("<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+
+    def _populate_prompt(self):
+        """Populate the prompt section."""
+        with self.prompt_output:
+            self.prompt_output.clear_output(wait=True)
+            if self.prompt:
+                display(HTML(f"<div><h4>Prompt</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.prompt}</pre></div>"))
+            else:
+                display(HTML("<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"))
+
 
     def _populate_output(self):
         """Populate the output section."""
@@ -520,10 +533,11 @@ def execute(code: str, dependencies: List[str] = [],
     Returns:
         The result of the execution.
     """
-    from ._utilities import python_code_to_notebook
-    notebook_json = python_code_to_notebook(code)
+    from ._utilities import python_code_to_mystnb
+    notebook_mystnb = python_code_to_mystnb(code)
 
-    return execute_notebook(notebook_json, 
+    return execute_notebook(
+                     notebook_mystnb=notebook_mystnb, 
                      dependencies=dependencies, 
                      input_host_path=input_host_path, 
                      input_container_path=input_container_path, 
@@ -537,7 +551,9 @@ def execute(code: str, dependencies: List[str] = [],
                      executor=executor)
 
 
-def execute_notebook(notebook_json: str, dependencies: List[str] = [], 
+def execute_notebook(notebook_json: Optional[str] = None, 
+                     notebook_mystnb: Optional[str] = None,
+                    dependencies: List[str] = [], 
                     input_host_path: Optional[str] = None, 
                     input_container_path: str = "/input_data",
                     output_host_path: Optional[str] = None, 
@@ -553,6 +569,7 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
 
     Args:
         notebook_json: The notebook JSON string to execute.
+        notebook_mystnb: The notebook in mystnb format to execute (alternative to notebook_json).
         dependencies: The dependencies to install.
         input_host_path: Optional path to the directory on the host to mount as read-only input.
         input_container_path: Path inside the container where the input volume will be mounted.
@@ -573,7 +590,12 @@ def execute_notebook(notebook_json: str, dependencies: List[str] = [],
         _executor = CodeExecutor(python_version=python_version, base_image=base_image, timeout=timeout, memory_limit=memory_limit, gpu_support=gpu_support)
     else:
         _executor = executor
-    return _executor.execute_notebook(notebook_json, dependencies, input_host_path, input_container_path, output_host_path, output_container_path)
+    if notebook_json is None and notebook_mystnb is not None:
+        res = _executor.execute_notebook(notebook_mystnb, notebook_filename="notebook.mystnb", dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, output_host_path=output_host_path, output_container_path=output_container_path)
+    else:
+        res = _executor.execute_notebook(notebook_json, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, output_host_path=output_host_path, output_container_path=output_container_path)
+    
+    return res
 
 
 class CodeExecutor:
@@ -635,8 +657,9 @@ class CodeExecutor:
     
     def execute_notebook(
         self, 
-        notebook_json: str, 
-        dependencies: List[str], 
+        notebook_content: str,
+        notebook_filename:str = "notebook.ipynb",
+        dependencies: List[str] = [], 
         input_host_path: Optional[str] = None, 
         input_container_path: str = "/input_data",
         output_host_path: Optional[str] = None, 
@@ -646,7 +669,8 @@ class CodeExecutor:
         Execute a Jupyter notebook in a Docker container using nbconvert.
         
         Args:
-            notebook_json: Jupyter notebook JSON string to execute
+            notebook_content: Jupyter notebook JSON or mystnb string to execute
+            notebook_filename: The filename to use for the notebook inside the container ending with .md, .mystnb, or .ipynb
             dependencies: List of Python package dependencies
             input_host_path: Optional path to the directory on the host to mount as read-only input
             input_container_path: Path inside the container where the input volume will be mounted
@@ -685,57 +709,72 @@ class CodeExecutor:
             display_output_container_path = "/display_output"
             os.makedirs(display_output_host_path, exist_ok=True)
 
-            try:
-                # Write notebook JSON to a file
-                notebook_file = os.path.join(temp_dir, "notebook.ipynb")
-                with open(notebook_file, "w", encoding="utf-8") as f:
-                    f.write(notebook_json)
-                
-                # Create requirements.txt if dependencies exist
-                requirements_file = None
-                if dependencies:
-                    requirements_file = os.path.join(temp_dir, "requirements.txt")
-                    with open(requirements_file, "w") as f:
-                        for dep in dependencies:
-                            # Replace generic cupy with CUDA-compatible version for GPU support
-                            if self.gpu_support and dep.strip().lower() == "cupy":
-                                # Use cupy-cuda12x for CUDA 12.x compatibility
-                                f.write("cupy-cuda12x\n")
-                            else:
-                                f.write(f"{dep}\n")
-                    #print(f"Created requirements.txt with {dependencies}")
-                
-                # Create Dockerfile for notebook execution
-                dockerfile_content = self._create_notebook_dockerfile(requirements_file is not None, display_output_container_path)
-                dockerfile_path = os.path.join(temp_dir, "Dockerfile")
-                with open(dockerfile_path, "w") as f:
-                    f.write(dockerfile_content)
-                
-                # Build and run container
-                container = self._build_and_run_container(
-                    temp_dir, notebook_file, input_host_path, input_container_path, 
-                    output_host_path, output_container_path,
-                    display_output_host_path, display_output_container_path,
-                    dependencies
-                )
-                
-                self.containers.append(container.id)
-                
-                # Get execution results
-                result = self._get_execution_result(container, start_time)
-                                    
-            except Exception as e:
+            if "pip install" not in notebook_content and "pip3 install" not in notebook_content:
+                try:
+                    # Write notebook JSON to a file
+                    notebook_file = os.path.join(temp_dir, notebook_filename)
+                    with open(notebook_file, "w", encoding="utf-8") as f:
+                        f.write(notebook_content)
+                    
+                    # Create requirements.txt if dependencies exist
+                    requirements_file = None
+                    if dependencies:
+                        requirements_file = os.path.join(temp_dir, "requirements.txt")
+                        with open(requirements_file, "w") as f:
+                            for dep in dependencies:
+                                # Replace generic cupy with CUDA-compatible version for GPU support
+                                if self.gpu_support and dep.strip().lower() == "cupy":
+                                    # Use cupy-cuda12x for CUDA 12.x compatibility
+                                    f.write("cupy-cuda12x\n")
+                                else:
+                                    f.write(f"{dep}\n")
+                        #print(f"Created requirements.txt with {dependencies}")
+                    
+                    # Create Dockerfile for notebook execution
+                    dockerfile_content = self._create_notebook_dockerfile(
+                        has_dependencies=requirements_file is not None, 
+                        output_container_path=display_output_container_path, 
+                        notebook_filename=notebook_filename)
+                    dockerfile_path = os.path.join(temp_dir, "Dockerfile")
+                    with open(dockerfile_path, "w") as f:
+                        f.write(dockerfile_content)
+                    
+                    # Build and run container
+                    container = self._build_and_run_container(
+                        temp_dir, notebook_file, input_host_path, input_container_path, 
+                        output_host_path, output_container_path,
+                        display_output_host_path, display_output_container_path,
+                        dependencies
+                    )
+                    
+                    self.containers.append(container.id)
+                    
+                    # Get execution results
+                    result = self._get_execution_result(container, start_time)
+                                        
+                except Exception as e:
+                    import traceback
+                    # Return error result
+                    result = ExecutionResult(
+                        stdout="",
+                        stderr=str(e),
+                        exit_code=1,
+                        execution_time=time.time() - start_time,
+                        traceback=traceback.format_exc()
+                    )
+            else:
                 import traceback
                 # Return error result
                 result = ExecutionResult(
-                    stdout="",
-                    stderr=str(e),
+                    stdout="pip install is prohibited in this environment.",
+                    stderr="pip install is prohibited in this environment.",
                     exit_code=1,
                     execution_time=time.time() - start_time,
-                    traceback=traceback.format_exc()
+                    traceback=""
                 )
         
-            result.code = notebook_json
+            result.code = notebook_content
+            
             result.dependencies = dependencies
 
             # add files in output directory to result
@@ -850,12 +889,19 @@ class CodeExecutor:
 
                 if result.final_result is None and len(outputs) > 0:
                     result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
+                    try:
+                        result.final_result = float(result.final_result)
+                    except ValueError:
+                        try:
+                            result.final_result = int(result.final_result)
+                        except ValueError:
+                            pass
 
         
         return result
 
     
-    def _create_notebook_dockerfile(self, has_dependencies: bool, output_container_path: str) -> str:
+    def _create_notebook_dockerfile(self, notebook_filename:str, has_dependencies: bool, output_container_path: str) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
 
         if self.gpu_support:
@@ -893,7 +939,7 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \\
 RUN python3 -m pip install --upgrade pip
 
 # Install jupyter and nbconvert
-RUN python3 -m pip install --no-cache-dir jupyter nbconvert
+RUN python3 -m pip install --no-cache-dir jupyter nbconvert jupytext 
 
 # Copy requirements and install Python dependencies
 """
@@ -910,7 +956,7 @@ RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/*
 
 # Install jupyter and nbconvert
-RUN pip install --no-cache-dir jupyter nbconvert
+RUN pip install --no-cache-dir jupyter nbconvert jupytext
 
 # Copy requirements and install Python dependencies
 """
@@ -923,18 +969,23 @@ RUN pip install --no-cache-dir -r requirements.txt
         
         dockerfile += f"""
 # Copy the notebook file
-COPY notebook.ipynb .
+COPY {notebook_filename} .
 
 # Execute the notebook using nbconvert and save to file
 """
         
-        if self.gpu_support:
-            # For GPU containers, run clinfo first to check GPU detection
-            dockerfile += f"""CMD ["/bin/bash", "-c", "echo '=== OpenCL Info ===' && clinfo | head -n 50 && echo '=== Starting Notebook Execution ===' && jupyter nbconvert --to notebook --execute notebook.ipynb --output {output_container_path}/notebook_executed.ipynb"]
+        # notebook conversion for mystnb or markdown files
+        if notebook_filename.endswith(".mystnb") or notebook_filename.endswith(".md"):
+            # If it's a mystnb file, convert to ipynb first
+            dockerfile += f"""RUN jupytext --to notebook {notebook_filename} -o notebook.ipynb
 """
-        else:
-            # Standard notebook execution
-            dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
+            
+        elif notebook_filename != "notebook.ipynb":
+            dockerfile += f"""COPY {notebook_filename} notebook.ipynb
+"""
+
+        # Standard notebook execution
+        dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
 """
         
         return dockerfile
@@ -1136,6 +1187,10 @@ COPY notebook.ipynb .
                 # Container might already be removed, ignore the error
                 pass
             
+            nb_exec_error_delimiter = "nbclient.exceptions.CellExecutionError: "
+            if nb_exec_error_delimiter in stdout:
+                stdout = stdout.split(nb_exec_error_delimiter)[-1]
+
             return ExecutionResult(
                 stdout=stdout,
                 stderr=stderr,
@@ -1225,9 +1280,13 @@ class ExecutionResultList:
     
     def _create_tabbed_interface(self):
         """Create the tabbed widget interface."""
-        # Create tab children (each tab will contain one ExecutionResult)
-        tab_children = []
-        
+        # Create tab children (overview + each execution result)
+        self.overview_output = widgets.Output()
+        self._populate_overview()
+
+        tab_children = [self.overview_output]
+        tab_titles = ["Overview"]
+
         for i, result in enumerate(self.results):
             if result is None:
                 continue
@@ -1242,6 +1301,10 @@ class ExecutionResultList:
             if hasattr(result, 'widget'):
                 tab_content = result.widget
                 tab_children.append(tab_content)
+                if i < len(self.tab_names):
+                    tab_titles.append(self.tab_names[i])
+                else:
+                    tab_titles.append(f"Result {i + 1}")
 
             result.render_inline = temp
         
@@ -1250,7 +1313,7 @@ class ExecutionResultList:
         self.tab_widget.children = tab_children
         
         # Set tab titles
-        for i, name in enumerate(self.tab_names):
+        for i, name in enumerate(tab_titles):
             self.tab_widget.set_title(i, name)
         
         # Add some styling to the tab widget
@@ -1258,7 +1321,315 @@ class ExecutionResultList:
             width='100%',
             height='auto'
         )
-    
+
+    def _get_final_results(self) -> List[Any]:
+        """Collect non-empty final results from the list."""
+        collected = []
+        for result in self.results:
+            if result is None or not hasattr(result, 'final_result'):
+                continue
+            if result.final_result is not None:
+                collected.append(result.final_result)
+        return collected
+
+    def _classify_final_result(self, value: Any) -> str:
+        """Classify final_result values into broad visualization-friendly types."""
+        import numbers
+
+        if isinstance(value, bool):
+            return "other"
+        if isinstance(value, numbers.Number):
+            return "numeric"
+        if isinstance(value, str):
+            return "string"
+
+        value_type = type(value)
+        if value_type.__name__ == "DataFrame" and value_type.__module__.startswith("pandas"):
+            return "dataframe"
+
+        # Consider image-like arrays and PIL images as images.
+        if value_type.__module__.startswith("numpy") and hasattr(value, "ndim"):
+            if getattr(value, "ndim", 0) in (2, 3):
+                return "image"
+
+        if hasattr(value, "size") and hasattr(value, "mode") and value_type.__module__.startswith("PIL"):
+            return "image"
+
+        return "other"
+
+    def _dominant_result_type(self, values: List[Any]) -> str:
+        """Return the dominant result type among final results."""
+        type_counts = {
+            "numeric": 0,
+            "string": 0,
+            "image": 0,
+            "dataframe": 0,
+            "other": 0,
+        }
+
+        for value in values:
+            type_counts[self._classify_final_result(value)] += 1
+
+        dominant = max(type_counts, key=type_counts.get)
+        return dominant
+
+    def _render_word_cloud(self, text: str, title: str):
+        """Render a word cloud for text data with a fallback when wordcloud is unavailable."""
+        import matplotlib.pyplot as plt
+        from collections import Counter
+
+        cleaned = " ".join(str(text).split())
+        if not cleaned:
+            display(HTML("<p><em>No text available for word cloud.</em></p>"))
+            return
+
+        try:
+            from wordcloud import WordCloud
+
+            wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wc, interpolation="bilinear")
+            ax.axis("off")
+            ax.set_title(title)
+            display(fig)
+            plt.close(fig)
+            return
+        except Exception:
+            pass
+
+        # Fallback: simple frequency chart when wordcloud dependency is unavailable.
+        tokens = [t for t in cleaned.split(" ") if t]
+        token_counts = Counter(tokens).most_common(20)
+        if not token_counts:
+            display(HTML("<p><em>No tokens available for fallback frequency plot.</em></p>"))
+            return
+
+        labels = [item[0] for item in token_counts]
+        counts = [item[1] for item in token_counts]
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.barh(labels[::-1], counts[::-1], color="#4C72B0")
+        ax.set_title(f"{title} (fallback frequency chart)")
+        ax.set_xlabel("Frequency")
+        display(fig)
+        plt.close(fig)
+
+    def _render_numeric_histogram(self, values: List[Any]):
+        """Render a histogram for numeric final results."""
+        import matplotlib.pyplot as plt
+
+        numeric_values = []
+        for value in values:
+            if self._classify_final_result(value) == "numeric":
+                numeric_values.append(float(value))
+
+        if not numeric_values:
+            display(HTML("<p><em>No numeric values available for histogram.</em></p>"))
+            return
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+        bins = min(20, max(5, len(numeric_values)))
+        ax.hist(numeric_values, bins=bins, color="#2A9D8F", edgecolor="white")
+        ax.set_title("Distribution of final_result values")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Count")
+        display(fig)
+        plt.close(fig)
+
+    def _render_images_grid(self, values: List[Any]):
+        """Render image-like final results in a grid."""
+        import math
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        images = []
+        for value in values:
+            if self._classify_final_result(value) != "image":
+                continue
+
+            array_value = None
+            value_type = type(value)
+            if value_type.__module__.startswith("numpy"):
+                array_value = value
+            elif hasattr(value, "size") and hasattr(value, "mode") and value_type.__module__.startswith("PIL"):
+                array_value = np.array(value)
+
+            if array_value is not None:
+                images.append(array_value)
+
+        if not images:
+            display(HTML("<p><em>No image values available for image grid.</em></p>"))
+            return
+
+        n_images = len(images)
+        n_cols = min(4, n_images)
+        n_rows = math.ceil(n_images / n_cols)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(3.2 * n_cols, 3.2 * n_rows))
+        axes = np.array(axes).reshape(-1)
+
+        for idx, ax in enumerate(axes):
+            if idx < n_images:
+                ax.imshow(images[idx], cmap="gray" if images[idx].ndim == 2 else None)
+                ax.set_title(f"Result {idx + 1}")
+                ax.axis("off")
+            else:
+                ax.axis("off")
+
+        fig.suptitle("Image final_result overview", y=1.02)
+        fig.tight_layout()
+        display(fig)
+        plt.close(fig)
+
+    def _render_dataframe_columns_wordcloud(self, values: List[Any]):
+        """Render a word cloud based on DataFrame column names."""
+        columns = []
+        for value in values:
+            if self._classify_final_result(value) == "dataframe":
+                try:
+                    columns.extend([str(c) for c in list(value.columns)])
+                except Exception:
+                    continue
+
+        if not columns:
+            display(HTML("<p><em>No DataFrame columns found.</em></p>"))
+            return
+
+        self._render_word_cloud(" ".join(columns), "DataFrame column names")
+
+    def _trace_result_chain(self, result: Optional[ExecutionResult]) -> List[ExecutionResult]:
+        """Return a result chain from oldest to newest following former_result links."""
+        if result is None:
+            return []
+
+        chain = []
+        seen = set()
+        cursor = result
+
+        while cursor is not None:
+            cursor_id = id(cursor)
+            if cursor_id in seen:
+                break
+            seen.add(cursor_id)
+            chain.append(cursor)
+            cursor = getattr(cursor, "former_result", None)
+
+        return list(reversed(chain))
+
+    def _format_simplified_final_result_td(self, value: Any) -> str:
+        """Format one simplified table cell for a final_result value."""
+        import html
+
+        if value is None:
+            return "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+
+        if isinstance(value, bool):
+            return (
+                "<td style='background:#e2904a;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{value}</td>"
+            )
+        if isinstance(value, int) or isinstance(value, float):
+            return (
+                "<td style='background:#4a90e2;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{value}</td>"
+            )
+
+        if isinstance(value, str):
+            preview = html.escape(value[:10])
+            length = len(value)
+            return (
+                "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
+            )
+
+        type_text = html.escape(str(type(value)))
+        return (
+            "<td style='background:#555555;color:white;padding:6px 10px;"
+            f"border:1px solid #ffffff;'>{type_text}</td>"
+        )
+
+    def _render_former_results_overview_table(self):
+        """Render a simplified table of former_result chains for each result."""
+        rows_html = []
+
+        for row_index, result in enumerate(self.results):
+            chain = self._trace_result_chain(result)
+
+            if not chain:
+                row_cells = "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+            else:
+                row_cells = "".join(
+                    self._format_simplified_final_result_td(getattr(item, "final_result", None))
+                    for item in chain
+                )
+
+            row_html = (
+                "<tr>"
+                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Result {row_index + 1}</strong></td>"
+                f"{row_cells}"
+                "</tr>"
+            )
+            rows_html.append(row_html)
+
+        table_html = (
+            "<div style='margin:10px 0 14px 0;'>"
+            "<h5 style='margin:0 0 8px 0;'>Result tracing</h5>"
+            "Results changed from iteration to iteration as follows (final results on the right):"
+            "<div style='overflow-x:auto;'>"
+            "<table style='border-collapse:collapse;width:max-content;min-width:100%;font-family:monospace;font-size:12px;'>"
+            "<tbody>"
+            f"{''.join(rows_html)}"
+            "</tbody>"
+            "</table>"
+            "</div>"
+            "</div>"
+        )
+
+        display(HTML(table_html))
+
+    def _populate_overview(self):
+        """Populate overview tab with adaptive visualization of final_result values."""
+        with self.overview_output:
+            self.overview_output.clear_output(wait=True)
+
+            final_results = self._get_final_results()
+            if final_results:
+                
+                type_counts = {
+                    "numeric": 0,
+                    "string": 0,
+                    "image": 0,
+                    "dataframe": 0,
+                    "other": 0,
+                }
+                for value in final_results:
+                    type_counts[self._classify_final_result(value)] += 1
+
+                dominant_type = self._dominant_result_type(final_results)
+
+                summary_html = (
+                    "<div><h4>Overview</h4>"
+                    f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
+                    f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
+                    f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
+                    f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
+                    "</div>"
+                )
+                display(HTML(summary_html))
+
+                if dominant_type == "numeric":
+                    self._render_numeric_histogram(final_results)
+                elif dominant_type == "string":
+                    joined_text = " ".join([str(v) for v in final_results if self._classify_final_result(v) == "string"])
+                    self._render_word_cloud(joined_text, "Word cloud of final_result text")
+                elif dominant_type == "image":
+                    self._render_images_grid(final_results)
+                elif dominant_type == "dataframe":
+                    self._render_dataframe_columns_wordcloud(final_results)
+                else:
+                    preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
+                    display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
+
+            self._render_former_results_overview_table()
+
     def display(self):
         """Display the tabbed interface."""
         display(self.tab_widget)
@@ -1298,7 +1669,33 @@ class ExecutionResultList:
         self.tab_names.append(tab_name)
         
         # Recreate the tabbed interface with the new result
-        self._create_tabbed_interface() 
+        self._create_tabbed_interface()
+
+    @property
+    def consistency(self) -> float:
+        """Return the consistency of the results.
+        
+        Consistency is defined as the maximum count of any identical final_result
+        divided by the total number of results. Returns 0.0 if there are no results.
+        """
+        if not self.results:
+            return 0.0
+
+        counts = {}
+        for result in self.results:
+            value = result.final_result if hasattr(result, 'final_result') else None
+            if value is not None:
+                try:
+                    key = value
+                    hash(key)
+                except TypeError:
+                    key = id(value)
+                counts[key] = counts.get(key, 0) + 1
+
+        try:
+            return max(counts.values()) / len(self.results)
+        except ValueError:
+            return 0.0
 
 
 def test_gpu_support() -> ExecutionResult:
