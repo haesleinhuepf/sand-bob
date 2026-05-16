@@ -21,30 +21,13 @@ def system_prompt_code_generation(display_output_path, dependencies):
     str
         Prompt text with framework constraints and output requirements.
     """
-    dependencies_str = ", ".join(dependencies)
-    return f"""
-You are an expert in python programming. You have a list of framework constraints which you MUST follow.
-Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
-Assume your code will be executed in a Jupyter notebook cell.
+    from ._config import config
 
-# Framework constraints
-* You may use the following libraries, but only if necessary: {dependencies_str}
-* pip install is STRICTLY PROHIBITED. You can only use the libraries mentioned above.
-* Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
-* Final result output (print or display calls): 
-  * The second-last print or display call should be a description of the result (e.g. the measurment and a physical unit if relevant).
-  * The last print or display call should be the final result ONLY.
-  * If the task is to generate a count, ratio or measurements, print the final result using a separate `print` call. 
-  * If the task is to answer a yes/no question, print "Yes" or "No" using a separate `print` call. Do not create any JSON for this.
-  * If the task is to generate a plot, display the plot.
-  * Also plot intermediate results if possible.
-* Final result output (file writing):
-  * If the task is to generate a text or a string, write the text or string to "{display_output_path}/final_result.txt".
-  * If the task is to generate a table, write the table to "{display_output_path}/final_result.csv".
-  * If the task is to generate a number, list, array or dictionary, write the result to "{display_output_path}/final_result.json".
-    In that case, do not add additional data structures. Simply json.dump the result to the file. E.g. if the result is x=2, then just do `json.dump(x, fp)`.
-* Keep the code short and concise.
-"""
+    dependencies_str = ", ".join(dependencies)
+    return config.prompt_template_code_generation.format(
+        dependencies_str=dependencies_str,
+        display_output_path=display_output_path,
+    )
 
 def system_prompt_code_feedback(display_output_path):
     """Build the system prompt used for code-feedback generation.
@@ -60,46 +43,11 @@ def system_prompt_code_feedback(display_output_path):
     str
         Prompt text describing feedback categories and expectations.
     """
-    return f"""
-You are an expert in python programming, data analysis, visualization and statistics. 
-When provided with Python code, together with corresponding results, 
-you will be asked to provide feedback on the code. The code is either an entire 
-Jupyter notebook or a code snippet that is executed in a Jupyter notebook code cell.
+    from ._config import config
 
-# Feedback categories
-* Code quality: Check if the code is well-structured, readable, contains comments and follows best practices.
-* Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
-* Image Analysis: 
-  * In image processing workflows, check intermediate results are displayed and if they look reasonable.
-  * If a segmentation is performed, make sure the objects are neither over- nor under-segmented.
-  * If a segmentation is performed, make sure the right objects are segmented.
-  * If segmented objects look good in one reagion but not in another, use histogram equalization to improve the image quality before segmenting the image.
-  * If a segmentation result looks bad, propose a completely different segmentation method.
-* Data Analysis: Check if data is visualized before it is summarized.
-* Sanity checks: If the code is longer, make sure that there are sanity checks for intermediate results.
-* Documentation: Check if the code is documented and if the documentation is up to date.
-* Error handling: Check if the code is robust and if it handles errors gracefully.
-* Correct file paths in the code in case they were specified differently in the task description.
-* Do not write code for generating synthetic data unless your asked to explicitly.
-* Code style: Check if the code is formatted correctly and if it follows the PEP 8 style guide.
-* Code complexity: 
-  * Short and concise code is preferred. 
-  * If a result is a number, do not package it in complicated data structures. When dumping such results to a json file, simply do `json.dump(x, fp)`. Do NOT add dictionaries or lists around it.
-  * Do NOT propose adding main() functions as we are running the code in a Jupyter notebook.
-  * Avoid determining and displaying results and measurements that are not relevant for the final result.
-* Final result
-  * If the final result is a word, sentence or number, ensure that the final result is displayed using a separate print or display call by the very end of the code. 
-  * If the final result is a dataframe, save it in the folder {display_output_path} as .csv file and print its filename in the final output of the program.
-  * If the final result is an image, save it in the folder {display_output_path} as .tif file and print its filename in the final output of the program.
-  * If the final result is a plot, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program. Additionally, display the plot.
-  * If the final result is supposed to be "Yes" or "No", make sure to print "Yes" or "No" only. Do not create any JSON for this.
-
-# Feedback content
-Feedback should be short and concise. No need to be overly friendly.
-Show old code (snippets) and the corresponding new code how you would improve it. 
-Explain your modifications shortly.
-Avoid tables.
-"""
+    return config.prompt_template_code_feedback.format(
+        display_output_path=display_output_path
+    )
 
 def determine_missing_dependencies(code, stdout, stderr):
     """Infer missing packages from execution output.
@@ -122,24 +70,11 @@ def determine_missing_dependencies(code, stdout, stderr):
     from sand_bob import WHITELIST_DEPENDENCIES, config
     from sand_bob._utilities import extract_code
 
-    prompt = f"""
-You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
-Your task is to determine the missing dependencies that are required to run the code. This list could also be empty.
-The code is:
-```python
-{code}
-```
-
-The errors and stdout are:
-```
-{stdout}
-```
-
-```
-{stderr}
-```
-Return the missing dependencies in a JSON list and nothing else.
-    """
+    prompt = config.prompt_template_determine_missing_dependencies.format(
+        code=code,
+        stdout=stdout,
+        stderr=stderr,
+    )
 
     #import time
     #start_time = time.time()
@@ -176,25 +111,11 @@ def fix_error_in_code(code, stdout, stderr):
     from sand_bob import config
     from sand_bob._utilities import extract_code
     
-    prompt = f"""
-You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
-Your task is to determine the new code that is required to fix the error.
-Make sure to keep the code format. 
-    
-The code is:
-```
-{code}
-```
-The errors and stdout are:
-```
-{stdout}
-```
-
-```
-{stderr}
-```
-Return the new code and nothing else.
-    """
+    prompt = config.prompt_template_fix_error_in_code.format(
+        code=code,
+        stdout=stdout,
+        stderr=stderr,
+    )
     #import time
     #start_time = time.time()
     response = extract_code(config.prompt_function_fix_code(prompt))
@@ -523,27 +444,14 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
     ExecutionResult
         Execution result for regenerated code.
     """
-    res = generate_run(f"""
-Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
-Make sure to keep the code format.
+    from ._config import config
 
-# Task
-                    
-{prompt}
-                    
-# Code
-
-```
-{code}
-```
-
-# Feedback
-
-{feedback}
-
-# Your task
-Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
-""", dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+    generation_prompt = config.prompt_template_incorporate_feedback.format(
+        task=prompt,
+        code=code,
+        feedback=feedback,
+    )
+    res = generate_run(generation_prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
     
     return res
 
@@ -692,30 +600,6 @@ Original task:
 {original_task}
 """
 
-    prompt = f"""
-You are an expert in python programming. 
-You will update an existing Jupyter notebook in MystNB format, while not modifying the code.
-Your task is to make the notebook easier to read and understand by adding markdown cells with explanations, structuring the notebook in a clear way, and making sure intermediate results are displayed.
-
-Please take care of the following:
-* At the beginning of the notebook, add text in markdown format with the title of the notebook and a short general introduction to what will be happening in the notebook.
-* You may split code cells into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
-    * Do not split the code between figure creating and plotting. These things should stay in the same cell.
-    * NEVER split the code within functions, loops, conditions, etc.
-* Make sure the cells with substantial processing display their intermediate results by the end of the cell.
-* Make sure explanations between code-cells are explanatory. Ensure that the notebook nicely explains the code and the intermediate results.
-* Do not generate any output.
-* Do not modify the code itself, only add markdown text and display calls for intermediate results.
-
-## MystNB Notebook
-
-We are working with MystNB format, which is a markdown based syntax. 
-Our draft notebook looks like this:
-
-<notebook>
-
-"""
-
     out, code = [], []
 
     def flush_code():
@@ -734,17 +618,10 @@ Our draft notebook looks like this:
             code.append(line.rstrip())
 
     flush_code()
-    prompt = prompt + "\n".join(out)
-
-    prompt = prompt + """
-</notebook>
-  
-## Original task
-
-{original_task_prompt}
-
-Now update the Jupyter notebook in MystNB format above and make it easier to read and understand. Do not modify the python code itself. No additional explanation is needed.
-    """
+    prompt = config.prompt_template_python_code_to_beautiful_notebook.format(
+        draft_notebook="\n".join(out),
+        original_task_prompt=original_task_prompt,
+    )
 
     #print("prompt:", prompt)
 
