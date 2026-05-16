@@ -8,7 +8,7 @@ class Config:
         self.prompt_function_fix_code = prompt_scadsai_llm
         self.prompt_function_generate_code_feedback = prompt_scadsai_llm
         self.prompt_function_summarize_code = prompt_scadsai_llm
-        self.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model="meta-llama/Llama-4-Scout-17B-16E-Instruct")
+        self.prompt_function_notebook_conversion = prompt_scadsai_llm
         self.prompt_template_code_generation = """
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
 Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
@@ -186,7 +186,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_summarize_code = partial(prompt_kisski, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
 
-def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="meta-llama/Llama-4-Scout-17B-16E-Instruct"):
+def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-31B-it"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_scadsai_llm
