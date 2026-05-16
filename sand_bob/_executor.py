@@ -1569,7 +1569,7 @@ class ExecutionResultList:
 
             row_html = (
                 "<tr>"
-                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Result {row_index + 1}</strong></td>"
+                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Process {row_index + 1}</strong></td>"
                 f"{row_cells}"
                 "</tr>"
             )
