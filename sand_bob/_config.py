@@ -147,7 +147,7 @@ Please take care of the following:
 
 ## MystNB Notebook
 
-We are working with MystNB format, which is a markdown based syntax.
+We are working with MystNB format, which is a markdown-based syntax.
 Our draft notebook looks like this:
 
 <notebook>
