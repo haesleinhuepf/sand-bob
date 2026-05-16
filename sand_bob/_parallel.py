@@ -169,7 +169,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 
                 # Only process one completion at a time to avoid overwhelming
                 break
-    
+    status_display.status_text = ""
     return all_results
 
 
