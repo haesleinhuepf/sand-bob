@@ -1591,44 +1591,42 @@ class ExecutionResultList:
             self.overview_output.clear_output(wait=True)
 
             final_results = self._get_final_results()
-            if not final_results:
-                display(HTML("<div><h4>Overview</h4><p><em>No non-empty final_result values available.</em></p></div>"))
-                return
+            if final_results:
+                
+                type_counts = {
+                    "numeric": 0,
+                    "string": 0,
+                    "image": 0,
+                    "dataframe": 0,
+                    "other": 0,
+                }
+                for value in final_results:
+                    type_counts[self._classify_final_result(value)] += 1
 
-            type_counts = {
-                "numeric": 0,
-                "string": 0,
-                "image": 0,
-                "dataframe": 0,
-                "other": 0,
-            }
-            for value in final_results:
-                type_counts[self._classify_final_result(value)] += 1
+                dominant_type = self._dominant_result_type(final_results)
 
-            dominant_type = self._dominant_result_type(final_results)
+                summary_html = (
+                    "<div><h4>Overview</h4>"
+                    f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
+                    f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
+                    f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
+                    f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
+                    "</div>"
+                )
+                display(HTML(summary_html))
 
-            summary_html = (
-                "<div><h4>Overview</h4>"
-                f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
-                f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
-                f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
-                f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
-                "</div>"
-            )
-            display(HTML(summary_html))
-
-            if dominant_type == "numeric":
-                self._render_numeric_histogram(final_results)
-            elif dominant_type == "string":
-                joined_text = " ".join([str(v) for v in final_results if self._classify_final_result(v) == "string"])
-                self._render_word_cloud(joined_text, "Word cloud of final_result text")
-            elif dominant_type == "image":
-                self._render_images_grid(final_results)
-            elif dominant_type == "dataframe":
-                self._render_dataframe_columns_wordcloud(final_results)
-            else:
-                preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
-                display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
+                if dominant_type == "numeric":
+                    self._render_numeric_histogram(final_results)
+                elif dominant_type == "string":
+                    joined_text = " ".join([str(v) for v in final_results if self._classify_final_result(v) == "string"])
+                    self._render_word_cloud(joined_text, "Word cloud of final_result text")
+                elif dominant_type == "image":
+                    self._render_images_grid(final_results)
+                elif dominant_type == "dataframe":
+                    self._render_dataframe_columns_wordcloud(final_results)
+                else:
+                    preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
+                    display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
 
             self._render_former_results_overview_table()
 
