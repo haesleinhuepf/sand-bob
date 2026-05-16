@@ -91,7 +91,8 @@ for i, r in enumerate(results):
 * `n_feedback_iterations`: After potential code-fixes, the code and corresponding result  visualizations will be provided to a VLM to check it. This VLM will potentially come up with code improvements. Improved code will then be fed back to code-fixing if necessary. If  the  code remains identical, e.g. because  feedback suggested so, it will  stop early. Hence, if you specify `n_codefix_attempts=2` and `n_feedback_iterations=2`, code will be executed 1 time in the best case and 9 times in the worst case.
 
 This figure explains how `n_codefix_attempts` and `n_feedback_iterations` work together:
-![](docs/flowchart.png)
+
+<img src="docs/flowchart.png" height="400"/>
 
 ### Prompting for Python Code
 
