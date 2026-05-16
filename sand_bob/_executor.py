@@ -1493,6 +1493,96 @@ class ExecutionResultList:
 
         self._render_word_cloud(" ".join(columns), "DataFrame column names")
 
+    def _trace_result_chain(self, result: Optional[ExecutionResult]) -> List[ExecutionResult]:
+        """Return a result chain from oldest to newest following former_result links."""
+        if result is None:
+            return []
+
+        chain = []
+        seen = set()
+        cursor = result
+
+        while cursor is not None:
+            cursor_id = id(cursor)
+            if cursor_id in seen:
+                break
+            seen.add(cursor_id)
+            chain.append(cursor)
+            cursor = getattr(cursor, "former_result", None)
+
+        return list(reversed(chain))
+
+    def _format_simplified_final_result_td(self, value: Any) -> str:
+        """Format one simplified table cell for a final_result value."""
+        import html
+
+        if value is None:
+            return "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+
+        if isinstance(value, bool):
+            return (
+                "<td style='background:#e2904a;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{value}</td>"
+            )
+        if isinstance(value, int) or isinstance(value, float):
+            return (
+                "<td style='background:#4a90e2;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{value}</td>"
+            )
+
+        if isinstance(value, str):
+            preview = html.escape(value[:10])
+            length = len(value)
+            return (
+                "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
+            )
+
+        type_text = html.escape(str(type(value)))
+        return (
+            "<td style='background:#555555;color:white;padding:6px 10px;"
+            f"border:1px solid #ffffff;'>{type_text}</td>"
+        )
+
+    def _render_former_results_overview_table(self):
+        """Render a simplified table of former_result chains for each result."""
+        rows_html = []
+
+        for row_index, result in enumerate(self.results):
+            chain = self._trace_result_chain(result)
+
+            if not chain:
+                row_cells = "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+            else:
+                row_cells = "".join(
+                    self._format_simplified_final_result_td(getattr(item, "final_result", None))
+                    for item in chain
+                )
+
+            row_html = (
+                "<tr>"
+                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Result {row_index + 1}</strong></td>"
+                f"{row_cells}"
+                "</tr>"
+            )
+            rows_html.append(row_html)
+
+        table_html = (
+            "<div style='margin:10px 0 14px 0;'>"
+            "<h5 style='margin:0 0 8px 0;'>Result tracing/h5>"
+            "Results changed from iteration to iteration as follows (final results on the right):"
+            "<div style='overflow-x:auto;'>"
+            "<table style='border-collapse:collapse;width:max-content;min-width:100%;font-family:monospace;font-size:12px;'>"
+            "<tbody>"
+            f"{''.join(rows_html)}"
+            "</tbody>"
+            "</table>"
+            "</div>"
+            "</div>"
+        )
+
+        display(HTML(table_html))
+
     def _populate_overview(self):
         """Populate overview tab with adaptive visualization of final_result values."""
         with self.overview_output:
@@ -1537,7 +1627,9 @@ class ExecutionResultList:
             else:
                 preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
                 display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
-    
+
+            self._render_former_results_overview_table()
+
     def display(self):
         """Display the tabbed interface."""
         display(self.tab_widget)
