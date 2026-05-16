@@ -1539,10 +1539,17 @@ class ExecutionResultList:
                 )
             preview = html.escape(value[:10])
             length = len(value)
-            return (
-                "<td style='background:#8a4fff;color:white;padding:6px 10px;"
-                f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
-            )
+            if len(value) > 10:
+                return (
+                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
+                )
+            else:
+                return (
+                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{preview}</td>"
+                )
+
 
         type_text = html.escape(str(type(value)))
         return (
