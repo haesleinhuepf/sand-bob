@@ -48,7 +48,7 @@ def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="meta-
     config.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model=model)
 
 
-def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str="vllm-llama-4-scout-17b-16e-instruct"):
+def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str="vllm-llama-4-scout-17b-16e-instruct", notebook_conversion_model: str="vllm-llama-3-3-nemotron-super-49b-v1"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_kiara
@@ -58,7 +58,7 @@ def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str
     config.prompt_function_fix_code = partial(prompt_kiara, model=model)
     config.prompt_function_generate_code_feedback = partial(prompt_kiara, model=vision_model)
     config.prompt_function_summarize_code = partial(prompt_kiara, model=model)
-    config.prompt_function_notebook_conversion = partial(prompt_kiara, model=model)
+    config.prompt_function_notebook_conversion = partial(prompt_kiara, model=notebook_conversion_model)
 
 
 def config_ollama(model: str="qwen2.5-coder:3b"):

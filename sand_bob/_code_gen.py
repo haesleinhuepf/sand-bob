@@ -5,16 +5,15 @@ from ._parallel import parallel
 
 GOOD_CODE = "Overall the code looks good."
 
-def system_prompt_code_generation(display_output_path):
-    from sand_bob import WHITELIST_DEPENDENCIES
-    dependencies_str = ", ".join(WHITELIST_DEPENDENCIES)
+def system_prompt_code_generation(display_output_path, dependencies):
+    dependencies_str = ", ".join(dependencies)
     return f"""
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
 Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
 Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
-* Use the following libraries when necessary: {dependencies_str}
+* You may use the following libraries, but only if necessary: {dependencies_str}
 * pip install is STRICTLY PROHIBITED. You can only use the libraries mentioned above.
 * Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
 * Final result output (print or display calls): 
@@ -251,7 +250,7 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
     #import time
     #start_time = time.time()
 
-    system_prompt = system_prompt_code_generation("/display_output")
+    system_prompt = system_prompt_code_generation("/display_output", dependencies=dependencies)
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -461,7 +460,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     return res
 
 
-def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None, gpu_support=False):
+def python_code_to_beautiful_notebook(source, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None, gpu_support=False):
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
 
@@ -478,57 +477,57 @@ Original task:
 """
 
     prompt = f"""
-You are an expert in python programming. You are given some functional python code.
-Your task is to convert the code into a beautiful Jupyter notebook in MystNB format. Please take care of the following:
-* At the beginning of the notebook, add a markdown cell with the title of the notebook and a generat introduction to what will be happening in the notebook.
-* Split the code into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
+You are an expert in python programming. 
+You will update an existing Jupyter notebook in MystNB format, while not modifying the code.
+Your task is to make the notebook easier to read and understand by adding markdown cells with explanations, structuring the notebook in a clear way, and making sure intermediate results are displayed.
+
+Please take care of the following:
+* At the beginning of the notebook, add text in markdown format with the title of the notebook and a short general introduction to what will be happening in the notebook.
+* You may split code cells into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
     * Do not split the code between figure creating and plotting. These things should stay in the same cell.
     * NEVER split the code within functions, loops, conditions, etc.
 * Make sure the cells with substantial processing display their intermediate results by the end of the cell.
-* Reuse comments as markdown cells above the respective code cells. Ensure that the notebook nicely explains the code and the intermediate results.
+* Make sure explanations between code-cells are explanatory. Ensure that the notebook nicely explains the code and the intermediate results.
 * Do not generate any output.
-* Use the following libraries when necessary: {dependencies_str}
-* Do not introduce any new code or any new dependencies.
-* Make sure the code still does the same thing as the original code.
+* Do not modify the code itself, only add markdown text and display calls for intermediate results.
 
-## Code
+## MystNB Notebook
 
-The code is:
-```
-{code}
-```
-
-## MystNB Notebook Syntax
-
-We are working with MystNB format, which is a markdown based syntax.
-
-Every notebook is structured like this:
+We are working with MystNB format, which is a markdown based syntax. 
+Our draft notebook looks like this:
 
 <notebook>
 
-Initial exlanation of what will be happening in the notebook.
+"""
 
-```{{code-cell}} ipython3
-<python code/>
-```
+    out, code = [], []
 
-Explanation of the following code.
+    def flush_code():
+        if any(l.strip() for l in code):
+            out.append("```{code-cell} ipython3\n" + "\n".join(code).strip() + "\n```\n")
+        code.clear()
 
-```{{code-cell}} ipython3
-<python code/>
-```
+    for line in source.splitlines():
+        s = line.strip()
+        if s.startswith("#"):
+            flush_code()
+            text = s.lstrip("#").strip()
+            level = len(s) - len(s.lstrip("#"))
+            out.append(("#" * level + " " + text if level > 1 else text) + "\n")
+        else:
+            code.append(line.rstrip())
 
-Potentially more cells ...
+    flush_code()
+    prompt = prompt + "\n".join(out)
 
-Final remarks.
-
+    prompt = prompt + """
 </notebook>
-
+  
 ## Original task
 
 {original_task_prompt}
 
-Now convert the code into a beautiful Jupyter notebook in MystNB format. No additional explanation is needed.
+Now update the Jupyter notebook in MystNB format above and make it easier to read and understand. Do not modify the python code itself. No additional explanation is needed.
     """
 
     #print("prompt:", prompt)
@@ -552,7 +551,7 @@ jupytext:
     format_version: '0.13'
     jupytext_version: 1.13.8
 ---
-""" + notebook_str.split("\n---")[-1] 
+""" + notebook_str.split("\n---\n")[-1] 
 
     #print("result:", notebook_str)
 
