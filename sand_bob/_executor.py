@@ -1571,7 +1571,7 @@ class ExecutionResultList:
 
         table_html = (
             "<div style='margin:10px 0 14px 0;'>"
-            "<h5 style='margin:0 0 8px 0;'>Result tracing/h5>"
+            "<h5 style='margin:0 0 8px 0;'>Result tracing</h5>"
             "Results changed from iteration to iteration as follows (final results on the right):"
             "<div style='overflow-x:auto;'>"
             "<table style='border-collapse:collapse;width:max-content;min-width:100%;font-family:monospace;font-size:12px;'>"
