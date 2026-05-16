@@ -6,6 +6,21 @@ from ._parallel import parallel
 GOOD_CODE = "Overall the code looks good."
 
 def system_prompt_code_generation(display_output_path, dependencies):
+    """Build the system prompt used for code generation.
+
+    Parameters
+    ----------
+    display_output_path : str
+        Output directory path in the execution environment where generated code
+        should store final artifacts.
+    dependencies : list[str]
+        Allowed dependency names that generated code may import.
+
+    Returns
+    -------
+    str
+        Prompt text with framework constraints and output requirements.
+    """
     dependencies_str = ", ".join(dependencies)
     return f"""
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
@@ -32,6 +47,19 @@ Assume your code will be executed in a Jupyter notebook cell.
 """
 
 def system_prompt_code_feedback(display_output_path):
+    """Build the system prompt used for code-feedback generation.
+
+    Parameters
+    ----------
+    display_output_path : str
+        Output directory path in the execution environment used in feedback
+        requirements for saved artifacts.
+
+    Returns
+    -------
+    str
+        Prompt text describing feedback categories and expectations.
+    """
     return f"""
 You are an expert in python programming, data analysis, visualization and statistics. 
 When provided with Python code, together with corresponding results, 
@@ -74,6 +102,22 @@ Avoid tables.
 """
 
 def determine_missing_dependencies(code, stdout, stderr):
+    """Infer missing packages from execution output.
+
+    Parameters
+    ----------
+    code : str
+        Code that was executed.
+    stdout : str
+        Standard output captured from execution.
+    stderr : str
+        Standard error captured from execution.
+
+    Returns
+    -------
+    list[str]
+        Missing dependency names filtered to the configured whitelist.
+    """
     import json
     from sand_bob import WHITELIST_DEPENDENCIES, config
     from sand_bob._utilities import extract_code
@@ -112,6 +156,23 @@ Return the missing dependencies in a JSON list and nothing else.
 
 
 def fix_error_in_code(code, stdout, stderr):
+    """Generate a revised code snippet to address a runtime failure.
+
+    Parameters
+    ----------
+    code : str
+        Original code that failed.
+    stdout : str
+        Standard output captured during failed execution.
+    stderr : str
+        Standard error captured during failed execution.
+
+    Returns
+    -------
+    tuple[str, str]
+        Tuple containing extracted replacement code and the repair prompt used
+        for the model call.
+    """
     from sand_bob import config
     from sand_bob._utilities import extract_code
     
@@ -144,20 +205,34 @@ Return the new code and nothing else.
 
 
 def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, gpu_support=False):
-    """
-    Run the code and fix the dependencies or the code if needed.
+    """Execute code and iteratively repair dependency and runtime failures.
 
-    Args:
-        code: The code to run.
-        dependencies: The dependencies to use.
-        input_host_path: The path to the input data on the host.
-        input_container_path: The path to the input data in the container.
-        n_codefix_attempts: The number of attempts to fix the dependencies or the code.
-        executor: Optional CodeExecutor instance to reuse.
-        gpu_support: Whether to enable GPU support with NVIDIA drivers and pyclesperanto (optional).
-    
-    Returns:
-        The result of the execution, the potentially fixed code, and all dependencies including potentially new ones.
+    Parameters
+    ----------
+    code : str
+        Code or notebook source to execute.
+    prompt : str, optional
+        Prompt context attached to the resulting execution metadata.
+    dependencies : list[str], optional
+        Initial dependency list allowed for execution.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container path where input data is mounted.
+    n_codefix_attempts : int, default 2
+        Maximum number of repair attempts.
+    status_display : object, optional
+        Status UI object supporting update and add_progress.
+    executor : CodeExecutor, optional
+        Executor instance to reuse across runs.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+
+    Returns
+    -------
+    ExecutionResult
+        Final execution result containing updated code, dependencies, and
+        attempt metadata.
     """
     from sand_bob import execute, execute_notebook
     from sand_bob._utilities import is_notebook
@@ -237,8 +312,35 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
     return result
 
 def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None, gpu_support=False):
-    """
-    Generate a code snippet that runs the given prompt and checks if the output is as expected.
+    """Generate code for a task and execute it with automatic repairs.
+
+    Parameters
+    ----------
+    prompt : str
+        User task description used to generate code.
+    prefix_code : str, optional
+        Code prepended before generated code.
+    suffix_code : str, optional
+        Code appended after generated code.
+    dependencies : list[str], optional
+        Allowed dependency list for generation and execution.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container mount path for input data.
+    n_codefix_attempts : int, default 3
+        Maximum number of automatic repair attempts.
+    status_display : object, optional
+        Status UI object supporting update and add_progress.
+    executor : CodeExecutor, optional
+        Executor instance to reuse across runs.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+
+    Returns
+    -------
+    ExecutionResult
+        Execution result for the generated code.
     """
     from ._utilities import extract_code
     from ._config import config
@@ -280,6 +382,22 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
 
 
 def generate_code_feedback(code, list_of_objects=[], purpose=None):
+    """Request qualitative feedback for code and its produced outputs.
+
+    Parameters
+    ----------
+    code : str
+        Executed code to review.
+    list_of_objects : list, optional
+        Execution outputs represented as typed objects.
+    purpose : str, optional
+        Original task context to include in the feedback request.
+
+    Returns
+    -------
+    str
+        Feedback text returned by the configured model endpoint.
+    """
     from ._config import config
     
     if purpose is None:
@@ -320,6 +438,25 @@ If there are no improvements, simply say '{GOOD_CODE}' by the end.
 
 
 def code_and_outputs_to_messages(code: str, list_of_objects, prefix, suffix):
+    """Convert code and execution outputs into multimodal chat messages.
+
+    Parameters
+    ----------
+    code : str
+        Code content to include in the message.
+    list_of_objects : list[dict]
+        Output objects, including text values and optional image payloads.
+    prefix : str
+        Text placed before code and outputs.
+    suffix : str
+        Text appended after outputs.
+
+    Returns
+    -------
+    list[dict]
+        Chat message payload suitable for model APIs supporting text and image
+        content items.
+    """
     # Prepare text content and image messages
     text_parts = [f"""
 {prefix}
@@ -358,6 +495,34 @@ And the result was:
 
 
 def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None, gpu_support=False):
+    """Regenerate code by incorporating reviewer feedback.
+
+    Parameters
+    ----------
+    code : str
+        Current code implementation.
+    prompt : str
+        Original task description.
+    feedback : str
+        Reviewer feedback describing desired improvements.
+    dependencies : list[str], optional
+        Dependency list used for regeneration and execution.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container path for mounted input data.
+    status_display : object, optional
+        Status UI object supporting update and add_progress.
+    executor : CodeExecutor, optional
+        Executor instance to reuse across runs.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+
+    Returns
+    -------
+    ExecutionResult
+        Execution result for regenerated code.
+    """
     res = generate_run(f"""
 Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
 Make sure to keep the code format.
@@ -384,6 +549,33 @@ Provide the updated code to incorporate the feedback. Also make sure the origina
 
 @parallel
 def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, gpu_support=False):
+    """Generate, execute, review, and iteratively improve task-specific code.
+
+    Parameters
+    ----------
+    prompt : str
+        Task description used to generate and optimize code.
+    dependencies : list[str], optional
+        Allowed dependency list for generation and execution.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container path where input data is mounted.
+    n_codefix_attempts : int, default 2
+        Maximum repair attempts per generation iteration.
+    n_feedback_iterations : int, default 1
+        Maximum number of feedback-driven optimization rounds.
+    final_touch : bool, default True
+        Whether to convert final code into a more readable notebook format.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+
+    Returns
+    -------
+    ExecutionResult or list[ExecutionResult]
+        Final optimized execution result, or a list when called through the
+        parallel wrapper or in iterative mode.
+    """
 
     from IPython.display import display, Markdown, HTML
     from ._utilities import markdown_to_html
@@ -461,6 +653,30 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
 
 def python_code_to_beautiful_notebook(source, original_task="", dependencies=[], input_host_path=None, input_container_path="/input_data", executor=None, gpu_support=False):
+    """Convert Python source into a structured MystNB notebook and execute it.
+
+    Parameters
+    ----------
+    source : str
+        Python source to transform into notebook cells.
+    original_task : str, optional
+        Original task context to include in notebook narration.
+    dependencies : list[str], optional
+        Dependency list used when executing the generated notebook.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container path where input data is mounted.
+    executor : CodeExecutor, optional
+        Executor instance to reuse for notebook execution.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+
+    Returns
+    -------
+    ExecutionResult
+        Execution result of the transformed notebook.
+    """
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
 
@@ -579,12 +795,38 @@ jupytext:
     return res
 
 def myst_nb_to_json(myst_nb_str):
+    """Convert MystNB markdown text into an ipynb JSON string.
+
+    Parameters
+    ----------
+    myst_nb_str : str
+        Notebook content in Myst markdown format.
+
+    Returns
+    -------
+    str
+        Notebook serialized in ipynb JSON format.
+    """
     import jupytext
     nb = jupytext.reads(myst_nb_str, fmt="myst")
     ipynb_text = jupytext.writes(nb, fmt="ipynb")
     return ipynb_text
 
 def generate_code(*args, **kwargs):
+    """Generate code and normalize list output into ExecutionResultList.
+
+    Parameters
+    ----------
+    *args
+        Positional arguments forwarded to generate_and_optimize_code.
+    **kwargs
+        Keyword arguments forwarded to generate_and_optimize_code.
+
+    Returns
+    -------
+    ExecutionResult or ExecutionResultList
+        Wrapped execution result.
+    """
     from ._executor import ExecutionResultList
     result = generate_and_optimize_code(*args, **kwargs)
     if isinstance(result, list):
@@ -593,11 +835,37 @@ def generate_code(*args, **kwargs):
         return result
 
 def prefix_former_result(result, former_result):
+    """Attach a previous result at the end of a result chain.
+
+    Parameters
+    ----------
+    result : ExecutionResult
+        Current execution result that may already reference earlier results.
+    former_result : ExecutionResult or None
+        Result to append as the earliest predecessor.
+
+    Returns
+    -------
+    None
+        This function mutates the chain in place.
+    """
     while result.former_result is not None:
         result = result.former_result
     result.former_result = former_result
 
 def summarize_code(code:str):
+    """Summarize core algorithms used in a code snippet.
+
+    Parameters
+    ----------
+    code : str
+        Python code to summarize.
+
+    Returns
+    -------
+    str
+        Bullet-point summary focused on core algorithms.
+    """
 
     prompt = f"""
 You are an expert in python programming. You are given a python code snippet.
