@@ -109,6 +109,57 @@ The errors and stdout are:
 ```
 Return the new code and nothing else.
 """
+        self.prompt_template_incorporate_feedback = """
+Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
+Make sure to keep the code format.
+
+# Task
+                
+{task}
+                
+# Code
+
+```
+{code}
+```
+
+# Feedback
+
+{feedback}
+
+# Your task
+Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
+"""
+        self.prompt_template_python_code_to_beautiful_notebook = """
+You are an expert in python programming.
+You will update an existing Jupyter notebook in MystNB format, while not modifying the code.
+Your task is to make the notebook easier to read and understand by adding markdown cells with explanations, structuring the notebook in a clear way, and making sure intermediate results are displayed.
+
+Please take care of the following:
+* At the beginning of the notebook, add text in markdown format with the title of the notebook and a short general introduction to what will be happening in the notebook.
+* You may split code cells into multiple code cells. E.g. whenever a new code block starts, add a new code cell.
+    * Do not split the code between figure creating and plotting. These things should stay in the same cell.
+    * NEVER split the code within functions, loops, conditions, etc.
+* Make sure the cells with substantial processing display their intermediate results by the end of the cell.
+* Make sure explanations between code-cells are explanatory. Ensure that the notebook nicely explains the code and the intermediate results.
+* Do not generate any output.
+* Do not modify the code itself, only add markdown text and display calls for intermediate results.
+
+## MystNB Notebook
+
+We are working with MystNB format, which is a markdown based syntax.
+Our draft notebook looks like this:
+
+<notebook>
+{draft_notebook}
+</notebook>
+
+## Original task
+
+{original_task_prompt}
+
+Now update the Jupyter notebook in MystNB format above and make it easier to read and understand. Do not modify the python code itself. No additional explanation is needed.
+"""
     
 config = Config()
 

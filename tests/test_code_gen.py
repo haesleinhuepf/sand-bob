@@ -72,6 +72,71 @@ def test_fix_error_in_code_prompt_is_configurable():
         config.prompt_function_fix_code = original_prompt_function
 
 
+def test_incorporate_feedback_prompt_is_configurable():
+    import sand_bob._code_gen as code_gen
+    from sand_bob._config import config
+
+    original_template = config.prompt_template_incorporate_feedback
+    original_generate_run = code_gen.generate_run
+    try:
+        captured = {"prompt": None}
+        config.prompt_template_incorporate_feedback = "TASK={task}\nCODE={code}\nFEEDBACK={feedback}"
+
+        def _fake_generate_run(prompt, **kwargs):
+            captured["prompt"] = prompt
+            return "ok"
+
+        code_gen.generate_run = _fake_generate_run
+        result = code_gen.incorporate_feedback("print(1)", "solve x", "improve")
+        assert result == "ok"
+        assert captured["prompt"] == "TASK=solve x\nCODE=print(1)\nFEEDBACK=improve"
+    finally:
+        config.prompt_template_incorporate_feedback = original_template
+        code_gen.generate_run = original_generate_run
+
+
+def test_python_code_to_beautiful_notebook_prompt_is_configurable():
+    import sand_bob._executor as executor_module
+    from sand_bob._code_gen import python_code_to_beautiful_notebook
+    from sand_bob._config import config
+
+    original_template = config.prompt_template_python_code_to_beautiful_notebook
+    original_prompt_function = config.prompt_function_notebook_conversion
+    original_execute_notebook = executor_module.execute_notebook
+    try:
+        captured = {"prompt": None, "notebook_mystnb": None}
+        config.prompt_template_python_code_to_beautiful_notebook = (
+            "DRAFT_START\n{draft_notebook}\nDRAFT_END\nTASK_BLOCK\n{original_task_prompt}"
+        )
+
+        def _fake_prompt_function(prompt):
+            captured["prompt"] = prompt
+            return "<notebook>\n```{code-cell} ipython3\nprint('ok')\n```\n</notebook>"
+
+        class _Result:
+            pass
+
+        def _fake_execute_notebook(*, notebook_mystnb, **kwargs):
+            captured["notebook_mystnb"] = notebook_mystnb
+            result = _Result()
+            result.code = notebook_mystnb
+            return result
+
+        config.prompt_function_notebook_conversion = _fake_prompt_function
+        executor_module.execute_notebook = _fake_execute_notebook
+
+        result = python_code_to_beautiful_notebook("a = 1\nprint(a)", original_task="Analyze data")
+        assert captured["prompt"].startswith("DRAFT_START\n```{code-cell} ipython3")
+        assert "a = 1\nprint(a)" in captured["prompt"]
+        assert "Original task:\nAnalyze data" in captured["prompt"]
+        assert captured["notebook_mystnb"] is not None
+        assert result.prompt == captured["prompt"]
+    finally:
+        config.prompt_template_python_code_to_beautiful_notebook = original_template
+        config.prompt_function_notebook_conversion = original_prompt_function
+        executor_module.execute_notebook = original_execute_notebook
+
+
 def test_python_code_to_beautiful_notebook_returns_valid_json():
     """Test that python_code_to_beautiful_notebook result is valid JSON"""
     from sand_bob._code_gen import python_code_to_beautiful_notebook
