@@ -43,6 +43,7 @@ class ExecutionResult:
     render_inline: bool = True
     build_log: Optional[List[str]] = None
     summary: Optional[str] = None
+    error: Optional[str] = None
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -595,6 +596,12 @@ def execute_notebook(notebook_json: Optional[str] = None,
     else:
         res = _executor.execute_notebook(notebook_json, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, output_host_path=output_host_path, output_container_path=output_container_path)
     
+    # store name of error for later display
+    if "Traceback" in res.stdout:
+        import re
+        match = re.search(r"^([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception)):", res.stdout, re.MULTILINE)
+        res.error = match.group(1) if match else None
+
     return res
 
 
@@ -979,7 +986,6 @@ COPY {notebook_filename} .
             # If it's a mystnb file, convert to ipynb first
             dockerfile += f"""RUN jupytext --to notebook {notebook_filename} -o notebook.ipynb
 """
-            
         elif notebook_filename != "notebook.ipynb":
             dockerfile += f"""COPY {notebook_filename} notebook.ipynb
 """
@@ -1533,12 +1539,24 @@ class ExecutionResultList:
             )
 
         if isinstance(value, str):
+            if "Error" in value or "Exception" in value:
+                return (
+                    "<td style='background:#e24a4a;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{value}</td>"
+                )
             preview = html.escape(value[:10])
             length = len(value)
-            return (
-                "<td style='background:#8a4fff;color:white;padding:6px 10px;"
-                f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
-            )
+            if len(value) > 10:
+                return (
+                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
+                )
+            else:
+                return (
+                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{preview}</td>"
+                )
+
 
         type_text = html.escape(str(type(value)))
         return (
@@ -1556,14 +1574,16 @@ class ExecutionResultList:
             if not chain:
                 row_cells = "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
             else:
-                row_cells = "".join(
-                    self._format_simplified_final_result_td(getattr(item, "final_result", None))
-                    for item in chain
-                )
+                result_values = [getattr(item, "final_result", None) for item in chain]
+                for i, result in enumerate(chain):
+                    if result.error is not None:
+                        result_values[i] = result.error
+
+                row_cells = "".join(self._format_simplified_final_result_td(r) for r in result_values)
 
             row_html = (
                 "<tr>"
-                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Result {row_index + 1}</strong></td>"
+                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Process {row_index + 1}</strong></td>"
                 f"{row_cells}"
                 "</tr>"
             )
@@ -1629,6 +1649,9 @@ class ExecutionResultList:
                     display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
 
             self._render_former_results_overview_table()
+
+            from  ._config import config
+            display(HTML(config._repr_html_()))
 
     def display(self):
         """Display the tabbed interface."""

@@ -82,7 +82,7 @@ def parallel(func: Callable) -> Callable:
         if total_executions > 1:
             status_display = StatusDisplay(
                 total_steps=total_executions, 
-                status_text=f"Executing function: 0/{total_executions} completed",
+                status_text=f"Process 0/{total_executions} completed",
                 color="#2EB870"
             )
         
@@ -127,7 +127,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 all_results[execution_id] = result
                 completed_count += 1
                 if status_display:
-                    status_display.status_text = f"Executing function: {completed_count}/{total_executions} completed"
+                    status_display.status_text = f"Process {completed_count}/{total_executions} completed"
                     status_display.add_progress(1)
             return result
         except Exception as exc:
@@ -138,7 +138,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 all_results[execution_id] = None
                 completed_count += 1
                 if status_display:
-                    status_display.status_text = f"Executing function: {completed_count}/{total_executions} completed"
+                    status_display.status_text = f"Process {completed_count}/{total_executions} completed"
                     status_display.add_progress(1)
             return None
     

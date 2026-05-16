@@ -1,14 +1,16 @@
 from ._endpoints import prompt_scadsai_llm, prompt_openai, prompt_ollama, prompt_kisski
 from functools import partial
+import inspect
+from html import escape
 
 class Config:
     def __init__(self):
         self.prompt_function_determine_dependencies = prompt_scadsai_llm
         self.prompt_function_generate_code = prompt_scadsai_llm
         self.prompt_function_fix_code = prompt_scadsai_llm
-        self.prompt_function_generate_code_feedback = prompt_scadsai_llm
+        self.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model="google/gemma-4-31B-it")
         self.prompt_function_summarize_code = prompt_scadsai_llm
-        self.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model="meta-llama/Llama-4-Scout-17B-16E-Instruct")
+        self.prompt_function_notebook_conversion = prompt_scadsai_llm
         self.prompt_template_code_generation = """
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
 Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
@@ -160,6 +162,64 @@ Our draft notebook looks like this:
 
 Now update the Jupyter notebook in MystNB format above and make it easier to read and understand. Do not modify the python code itself. No additional explanation is needed.
 """
+
+    @staticmethod
+    def _get_callable_name_and_model(prompt_callable):
+        if isinstance(prompt_callable, partial):
+            func_name = getattr(prompt_callable.func, "__name__", type(prompt_callable.func).__name__)
+            model = prompt_callable.keywords.get("model") if prompt_callable.keywords else None
+            return func_name, model
+
+        func_name = getattr(prompt_callable, "__name__", type(prompt_callable).__name__)
+
+        model = None
+        try:
+            signature = inspect.signature(prompt_callable)
+            if "model" in signature.parameters:
+                default_model = signature.parameters["model"].default
+                if default_model is not inspect._empty:
+                    model = default_model
+        except (TypeError, ValueError):
+            model = None
+
+        return func_name, model
+
+    def _repr_html_(self):
+        header_first_col_style = "background:#3874CC;color:white;padding:6px 10px;border:1px solid white;"
+        rows = [
+            ("Generate  code", self.prompt_function_generate_code),
+            ("Fix code", self.prompt_function_fix_code),
+            ("Determine dependencies", self.prompt_function_determine_dependencies),
+            ("Generate code  feedback", self.prompt_function_generate_code_feedback),
+            ("Summarize code", self.prompt_function_summarize_code),
+            ("Notebook conversion", self.prompt_function_notebook_conversion),
+        ]
+
+        table_rows = []
+        for task, prompt_callable in rows:
+            function_name, model = self._get_callable_name_and_model(prompt_callable)
+            model_text = "" if model is None else str(model)
+            table_rows.append(
+                "<tr>"
+                f"<td style='{header_first_col_style}'>{escape(task)}</td>"
+                f"<td>{escape(function_name)}</td>"
+                f"<td>{escape(model_text)}</td>"
+                "</tr>"
+            )
+
+        return (
+            "<div style='margin:10px 0 14px 0;'>"
+            "<h5 style='margin:0 0 8px 0;'>LLM backend</h5>"
+            "<table>"
+            "<thead><tr>"
+            f"<th style='{header_first_col_style}'>Task</th>"
+            f"<th style='{header_first_col_style}'>Function</th>"
+            f"<th style='{header_first_col_style}'>Model</th>"
+            "</tr></thead>"
+            f"<tbody>{''.join(table_rows)}</tbody>"
+            "</table>"
+            "</div>"
+        )
     
 config = Config()
 
@@ -186,7 +246,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_summarize_code = partial(prompt_kisski, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
 
-def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="meta-llama/Llama-4-Scout-17B-16E-Instruct"):
+def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-31B-it"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_scadsai_llm
