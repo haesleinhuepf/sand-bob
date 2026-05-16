@@ -724,7 +724,7 @@ Our draft notebook looks like this:
         code.clear()
 
     for line in source.splitlines():
-        s = line.strip()
+        s = line
         if s.startswith("#"):
             flush_code()
             text = s.lstrip("#").strip()
