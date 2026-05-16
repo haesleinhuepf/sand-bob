@@ -86,11 +86,12 @@ The code is:
 ```python
 {code}
 ```
-The traceback is:
+
+The errors and stdout are:
 ```
 {stdout}
 ```
-The error message is:
+
 ```
 {stderr}
 ```
@@ -124,11 +125,11 @@ The code is:
 ```
 {code}
 ```
-The traceback is:
+The errors and stdout are:
 ```
 {stdout}
 ```
-The error message is:
+
 ```
 {stderr}
 ```
@@ -183,7 +184,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
         if status_display is not None:
             status_display.add_progress(1)
 
-        result.former_result = former_result
+        prefix_former_result(result, former_result)
 
         if n_a == n_codefix_attempts:
             break
@@ -359,26 +360,26 @@ And the result was:
 
 def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_path=None, input_container_path="/input_data", status_display=None, executor=None, gpu_support=False):
     res = generate_run(f"""
-    Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
-    Make sure to keep the code format.
+Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
+Make sure to keep the code format.
 
-    # Task
-                       
-    {prompt}
-                       
-    # Code
+# Task
+                    
+{prompt}
+                    
+# Code
 
-    ```
-    {code}
-    ```
+```
+{code}
+```
 
-    # Feedback
+# Feedback
 
-    {feedback}
+{feedback}
 
-    # Your task
-    Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
-    """, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+# Your task
+Provide the updated code to incorporate the feedback. Also make sure the original task will be fulfilled. Skip all explanations.
+""", dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
     
     return res
 
@@ -439,7 +440,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
                 status_display.add_progress((n_feedback_iterations - 1 - n_a)*(n_codefix_attempts+1))
             break
 
-        res.former_result = former_result
+        prefix_former_result(res, former_result)
 
         former_result = res
 
@@ -448,7 +449,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     if final_touch:
         status_display.update("Final touch")
         res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
-        res.former_result = former_result
+        prefix_former_result(res, former_result)
 
     status_display.update("")
     res.total_time = time.time() - start_time
@@ -469,12 +470,12 @@ def python_code_to_beautiful_notebook(code, original_task="", dependencies=[], i
     original_task_prompt = ""
     if original_task:
         original_task_prompt = f"""
-    Also make sure the original task remains fulfilled: Mention the original task in the first markdown cell of the notebook.
-    The explanations further down in the notebook should refers to the original task where relevant.
+Also make sure the original task remains fulfilled: Mention the original task in the first markdown cell of the notebook.
+The explanations further down in the notebook should refers to the original task where relevant.
 
-    Original task:
-    {original_task}
-        """
+Original task:
+{original_task}
+"""
 
     prompt = f"""
 You are an expert in python programming. You are given some functional python code.
@@ -551,7 +552,7 @@ jupytext:
     format_version: '0.13'
     jupytext_version: 1.13.8
 ---
-""" + notebook_str
+""" + notebook_str.split("\n---")[-1] 
 
     #print("result:", notebook_str)
 
@@ -592,7 +593,10 @@ def generate_code(*args, **kwargs):
     else:
         return result
 
-
+def prefix_former_result(result, former_result):
+    while result.former_result is not None:
+        result = result.former_result
+    result.former_result = former_result
 
 def summarize_code(code:str):
 
