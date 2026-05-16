@@ -82,7 +82,8 @@ def parallel(func: Callable) -> Callable:
         if total_executions > 1:
             status_display = StatusDisplay(
                 total_steps=total_executions, 
-                status_text=f"Executing function: 0/{total_executions} completed"
+                status_text=f"Executing function: 0/{total_executions} completed",
+                color="#2EB870"
             )
         
         # Combined parallel and iterative execution with continuous execution

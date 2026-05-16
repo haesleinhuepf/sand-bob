@@ -1,7 +1,13 @@
 class StatusDisplay:
-    def __init__(self, total_steps: int = 100, status_text: str = "Starting..."):
+    def __init__(
+        self,
+        total_steps: int = 100,
+        status_text: str = "Starting...",
+        color: str = "#3874CC",
+    ):
         # detect if we are in a notebook
         from ._utilities import we_are_in_a_notebook
+        self.color = color
         if we_are_in_a_notebook():
             from IPython.display import display, DisplayHandle, HTML
             self.widget = DisplayHandle()
@@ -25,7 +31,7 @@ class StatusDisplay:
 
         if percentage > 0:
             progress_bar_html += f"""
-            <div style="position: absolute; top: 0; left: 0; width: {percentage}%; height: 100%; background-color: #3874CC; transition: width 0.3s ease;"></div>
+            <div style="position: absolute; top: 0; left: 0; width: {percentage}%; height: 100%; background-color: {self.color}; transition: width 0.3s ease;"></div>
             <div style="position: absolute; top: 0; left: 0; width: {percentage}%; height: 100%; display: flex; align-items: left; justify-content: left; z-index: 3;">
                 <span style="color: #ffffff; font-size: 12px;">{status_text}</span>
             </div>
