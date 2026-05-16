@@ -45,7 +45,7 @@ Jupyter notebook or a code snippet that is executed in a Jupyter notebook code c
   * In image processing workflows, check intermediate results are displayed and if they look reasonable.
   * If a segmentation is performed, make sure the objects are neither over- nor under-segmented.
   * If a segmentation is performed, make sure the right objects are segmented.
-  * If segmented objects look good in one reagion but not in another, use histogram equalization to improve the image quality before segmenting the image.
+  * If segmented objects look good in one region but not in another, use histogram equalization to improve the image quality before segmenting the image.
   * If a segmentation result looks bad, propose a completely different segmentation method.
 * Data Analysis: Check if data is visualized before it is summarized.
 * Sanity checks: If the code is longer, make sure that there are sanity checks for intermediate results.
