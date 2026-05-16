@@ -110,7 +110,7 @@ The errors and stdout are:
 Return the new code and nothing else.
 """
         self.prompt_template_incorporate_feedback = """
-Given some task, code to fulfill the task, and detailed feedback, propose new code that incroporates the feedback.
+Given some task, code to fulfill the task, and detailed feedback, propose new code that incorporates the feedback.
 Make sure to keep the code format.
 
 # Task
