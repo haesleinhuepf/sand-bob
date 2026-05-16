@@ -22,6 +22,8 @@ Note: This is research software under active development. The API may break with
 pip install sand-bob
 ```
 
+Additionally, you need a local [docker](https://docs.docker.com/engine/install/) installation.
+
 ## Basic usage
 
 Before you can start prompting for code, you need to configure the environment where the AI-generate code can be executed and what files it will have [read] access to.
@@ -50,7 +52,7 @@ The result should be the number of blobs
 
 Or alternatively both steps above in one shot:
 ```
-res = generate_code("""
+results = generate_code("""
 There is an image input_data/blobs.tif 
 I would like to segment  the bright blobs in the image and count them.
 The result should be the number of blobs
@@ -62,11 +64,17 @@ The result should be the number of blobs
    n_feedback_iterations=1, 
    n_codefix_attempts=1)
 
-display(res)
+results
 ```
 
 Note that in your prompt, you need to specify the final result format you expect. Otherwise it will be hard later to decide which of multiple generated code samples do the right job.
 
+After retrieving the `results`, you can also navigate through them:
+
+```
+for i, r in enumerate(results):
+    print(f"Execution {i} had result", r)
+```
 
 ### Parameters
 
@@ -82,9 +90,12 @@ Note that in your prompt, you need to specify the final result format you expect
 
 * `n_feedback_iterations`: After potential code-fixes, the code and corresponding result  visualizations will be provided to a VLM to check it. This VLM will potentially come up with code improvements. Improved code will then be fed back to code-fixing if necessary. If  the  code remains identical, e.g. because  feedback suggested so, it will  stop early. Hence, if you specify `n_codefix_attempts=2` and `n_feedback_iterations=2`, code will be executed 1 time in the best case and 9 times in the worst case.
 
-## Under the hood
+This figure explains how `n_codefix_attempts` and `n_feedback_iterations` work together:
+![](docs/flowchart.png)
 
 ### Prompting for Python Code
+
+If you do not provide number of parallel or  iterative executions, only one result will be produced.
 
 ```python
 from sand_bob import generate_code
@@ -97,7 +108,25 @@ print(result.final_result)
 print(result.code)
 ```
 
-### Error Handling
+### GPU support
+
+```python
+from sand_bob import execute
+
+code = """
+import cupy as cp
+
+device_id = cp.cuda.runtime.getDevice()
+props = cp.cuda.runtime.getDeviceProperties(device_id)
+
+print(f"Current CUDA device ID: {device_id}")
+print(f"Current CUDA device name: {props['name'].decode()}")
+"""
+
+execute(code, dependencies=["cupy"], gpu_support=True)
+```
+
+### Errors in code
 
 ```python
 from sand_bob import execute
@@ -108,8 +137,7 @@ print("This won't execute")
 """
 
 result = execute(code, dependencies=[])
-if result.exit_code != 0:
-    print(f"Error: {result.stderr}")
+print(result.stdout)
 ```
 
 
