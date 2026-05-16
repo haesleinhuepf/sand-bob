@@ -979,7 +979,6 @@ COPY {notebook_filename} .
             # If it's a mystnb file, convert to ipynb first
             dockerfile += f"""RUN jupytext --to notebook {notebook_filename} -o notebook.ipynb
 """
-            
         elif notebook_filename != "notebook.ipynb":
             dockerfile += f"""COPY {notebook_filename} notebook.ipynb
 """
@@ -1533,6 +1532,11 @@ class ExecutionResultList:
             )
 
         if isinstance(value, str):
+            if value.startswith("Error"):
+                return (
+                    "<td style='background:#e24a4a;color:white;padding:6px 10px;"
+                    f"border:1px solid #ffffff;'>{value}</td>"
+                )
             preview = html.escape(value[:10])
             length = len(value)
             return (
@@ -1556,10 +1560,12 @@ class ExecutionResultList:
             if not chain:
                 row_cells = "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
             else:
-                row_cells = "".join(
-                    self._format_simplified_final_result_td(getattr(item, "final_result", None))
-                    for item in chain
-                )
+                result_values = [getattr(item, "final_result", None) for item in chain]
+                for i, result in enumerate(chain):
+                    if result.exit_code != 0:
+                        result_values[i] = "Error"
+
+                row_cells = "".join(self._format_simplified_final_result_td(r) for r in result_values)
 
             row_html = (
                 "<tr>"
