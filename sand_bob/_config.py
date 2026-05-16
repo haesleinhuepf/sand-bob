@@ -91,7 +91,7 @@ The errors and stdout are:
 Return the missing dependencies in a JSON list and nothing else.
 """
         self.prompt_template_fix_error_in_code = """
-You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
+You are an expert in python programming. You are given python code, and a traceback of an error that occurred when running the python code.
 Your task is to determine the new code that is required to fix the error.
 Make sure to keep the code format.
 
