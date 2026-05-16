@@ -140,6 +140,18 @@ result = execute(code, dependencies=[])
 print(result.stdout)
 ```
 
+### Result  tracing
+
+During the process of code improvement, error messages and results are stored. You can visualize them to differentiate cases, where finding a solution was more straight-forward:
+
+![](docs/result_tracing_consistent.png)
+
+... and cases where the system struggled to solve a task:
+
+![](docs/result_tracing_inconsistent.png)
+
+
+Note that even if multiple code generations / executions return the same result does not necessarily mean the result is correct.
 
 ## Examples
 
