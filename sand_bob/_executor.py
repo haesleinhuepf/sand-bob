@@ -889,6 +889,11 @@ class CodeExecutor:
 
                 if result.final_result is None and len(outputs) > 0:
                     result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
+                    try:
+                        result.final_result = int(result.final_result)
+                        result.final_result = float(result.final_result)
+                    except ValueError:
+                        pass
 
         
         return result
