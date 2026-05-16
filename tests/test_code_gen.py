@@ -30,6 +30,48 @@ def test_system_prompt_code_feedback_is_configurable():
         config.prompt_template_code_feedback = original_template
 
 
+def test_determine_missing_dependencies_prompt_is_configurable():
+    from sand_bob._code_gen import determine_missing_dependencies
+    from sand_bob._config import config
+
+    original_template = config.prompt_template_determine_missing_dependencies
+    original_prompt_function = config.prompt_function_determine_dependencies
+    try:
+        captured_prompt = {"value": None}
+
+        config.prompt_template_determine_missing_dependencies = (
+            "CODE={code}\nOUT={stdout}\nERR={stderr}"
+        )
+        config.prompt_function_determine_dependencies = (
+            lambda prompt: captured_prompt.update(value=prompt) or "[]"
+        )
+        dependencies = determine_missing_dependencies("print(1)", "ok", "nope")
+        assert dependencies == []
+        assert captured_prompt["value"] == "CODE=print(1)\nOUT=ok\nERR=nope"
+    finally:
+        config.prompt_template_determine_missing_dependencies = original_template
+        config.prompt_function_determine_dependencies = original_prompt_function
+
+
+def test_fix_error_in_code_prompt_is_configurable():
+    from sand_bob._code_gen import fix_error_in_code
+    from sand_bob._config import config
+
+    original_template = config.prompt_template_fix_error_in_code
+    original_prompt_function = config.prompt_function_fix_code
+    try:
+        config.prompt_template_fix_error_in_code = (
+            "CODE={code}\nOUT={stdout}\nERR={stderr}"
+        )
+        config.prompt_function_fix_code = lambda prompt: "print('fixed')"
+        new_code, prompt = fix_error_in_code("print(1)", "ok", "nope")
+        assert new_code == "print('fixed')"
+        assert prompt == "CODE=print(1)\nOUT=ok\nERR=nope"
+    finally:
+        config.prompt_template_fix_error_in_code = original_template
+        config.prompt_function_fix_code = original_prompt_function
+
+
 def test_python_code_to_beautiful_notebook_returns_valid_json():
     """Test that python_code_to_beautiful_notebook result is valid JSON"""
     from sand_bob._code_gen import python_code_to_beautiful_notebook

@@ -72,6 +72,43 @@ Show old code (snippets) and the corresponding new code how you would improve it
 Explain your modifications shortly.
 Avoid tables.
 """
+        self.prompt_template_determine_missing_dependencies = """
+You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
+Your task is to determine the missing dependencies that are required to run the code. This list could also be empty.
+The code is:
+```python
+{code}
+```
+
+The errors and stdout are:
+```
+{stdout}
+```
+
+```
+{stderr}
+```
+Return the missing dependencies in a JSON list and nothing else.
+"""
+        self.prompt_template_fix_error_in_code = """
+You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
+Your task is to determine the new code that is required to fix the error.
+Make sure to keep the code format. 
+    
+The code is:
+```
+{code}
+```
+The errors and stdout are:
+```
+{stdout}
+```
+
+```
+{stderr}
+```
+Return the new code and nothing else.
+"""
     
 config = Config()
 

@@ -70,24 +70,11 @@ def determine_missing_dependencies(code, stdout, stderr):
     from sand_bob import WHITELIST_DEPENDENCIES, config
     from sand_bob._utilities import extract_code
 
-    prompt = f"""
-You are an expert in python programming. You are given a traceback of an error that occurred when running a python code.
-Your task is to determine the missing dependencies that are required to run the code. This list could also be empty.
-The code is:
-```python
-{code}
-```
-
-The errors and stdout are:
-```
-{stdout}
-```
-
-```
-{stderr}
-```
-Return the missing dependencies in a JSON list and nothing else.
-    """
+    prompt = config.prompt_template_determine_missing_dependencies.format(
+        code=code,
+        stdout=stdout,
+        stderr=stderr,
+    )
 
     #import time
     #start_time = time.time()
@@ -124,25 +111,11 @@ def fix_error_in_code(code, stdout, stderr):
     from sand_bob import config
     from sand_bob._utilities import extract_code
     
-    prompt = f"""
-You are an expert in python programming. You are given python code, a traceback of an error that occurred when running the python code.
-Your task is to determine the new code that is required to fix the error.
-Make sure to keep the code format. 
-    
-The code is:
-```
-{code}
-```
-The errors and stdout are:
-```
-{stdout}
-```
-
-```
-{stderr}
-```
-Return the new code and nothing else.
-    """
+    prompt = config.prompt_template_fix_error_in_code.format(
+        code=code,
+        stdout=stdout,
+        stderr=stderr,
+    )
     #import time
     #start_time = time.time()
     response = extract_code(config.prompt_function_fix_code(prompt))
