@@ -1,6 +1,11 @@
 # Sand-Bob
 
-A Python library for executing AI-generated data analysis code in Docker containers with automated issue detection and fixing.
+A framework for studying language models and prompt-engineering performance in the context of  single-script code generation for data analysis. sand-bob allows you to
+* generate code in parallel and sequentially using the same prompt 
+* fix errors in code automatically iteratively
+* study code execution results with defined statistical power
+* do prompt engineering properly
+* compare language models
 
 ![](docs/counting_blobs.gif)
 
