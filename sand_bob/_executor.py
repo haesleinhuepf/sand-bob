@@ -740,9 +740,8 @@ class CodeExecutor:
                     
                     # Create Dockerfile for notebook execution
                     dockerfile_content = self._create_notebook_dockerfile(
-                        has_dependencies=requirements_file is not None, 
-                        output_container_path=display_output_container_path, 
-                        notebook_filename=notebook_filename)
+                        has_dependencies=requirements_file is not None
+                    )
                     dockerfile_path = os.path.join(temp_dir, "Dockerfile")
                     with open(dockerfile_path, "w") as f:
                         f.write(dockerfile_content)
@@ -909,7 +908,7 @@ class CodeExecutor:
         return result
 
     
-    def _create_notebook_dockerfile(self, notebook_filename:str, has_dependencies: bool, output_container_path: str) -> str:
+    def _create_notebook_dockerfile(self, has_dependencies: bool) -> str:
         """Create a Dockerfile for notebook execution using nbconvert."""
 
         if self.gpu_support:
@@ -975,26 +974,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 """
         
-        dockerfile += f"""
-# Copy the notebook file
-COPY {notebook_filename} .
-
-# Execute the notebook using nbconvert and save to file
-RUN cp /app/temp/{notebook_filename} /app/{notebook_filename}
-"""
-        
-        # notebook conversion for mystnb or markdown files
-        if notebook_filename.endswith(".mystnb") or notebook_filename.endswith(".md"):
-            # If it's a mystnb file, convert to ipynb first
-            dockerfile += f"""RUN jupytext --to notebook {notebook_filename} -o notebook.ipynb
-"""
-        elif notebook_filename != "notebook.ipynb":
-            dockerfile += f"""COPY {notebook_filename} notebook.ipynb
-"""
-
-        # Standard notebook execution
-        dockerfile += f"""CMD ["jupyter", "nbconvert", "--to", "notebook", "--execute", "notebook.ipynb", "--output", "{output_container_path}/notebook_executed.ipynb"]
-"""
+        # Notebook file handling and execution are done at runtime via run_params
+        # to avoid putting execution steps in the image build process.
         
         return dockerfile
     
@@ -1117,6 +1098,19 @@ RUN cp /app/temp/{notebook_filename} /app/{notebook_filename}
             'network_disabled': True,  # Disable network for security
             'remove': False
         }
+
+        notebook_filename = os.path.basename(code_file)
+        runtime_command = (
+            f'cp "/app/temp/{notebook_filename}" "/app/{notebook_filename}"; '
+            f'if [ "${{NOTEBOOK_FILE##*.}}" = "mystnb" ] || [ "${{NOTEBOOK_FILE##*.}}" = "md" ]; then '
+            f'jupytext --to notebook "{notebook_filename}" -o notebook.ipynb; '
+            f'elif [ "{notebook_filename}" != "notebook.ipynb" ]; then '
+            f'cp "{notebook_filename}" notebook.ipynb; '
+            f'fi; '
+            f'jupyter nbconvert --to notebook --execute notebook.ipynb --output "{display_output_container_path}/notebook_executed.ipynb"'
+        )
+        run_params['environment'] = {'NOTEBOOK_FILE': notebook_filename}
+        run_params['command'] = ["sh", "-lc", runtime_command]
         
         # Add GPU support if enabled
         if self.gpu_support:
@@ -1124,10 +1118,12 @@ RUN cp /app/temp/{notebook_filename} /app/{notebook_filename}
                 docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
             ]
             # Add NVIDIA environment variables for GPU access
-            run_params['environment'] = {
+            gpu_environment = {
                 'NVIDIA_VISIBLE_DEVICES': 'all',
                 'NVIDIA_DRIVER_CAPABILITIES': 'compute,utility'
             }
+            gpu_environment.update(run_params.get('environment', {}))
+            run_params['environment'] = gpu_environment
         
         # Initialize volumes dictionary
         volumes = {}
