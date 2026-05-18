@@ -604,6 +604,8 @@ def execute_notebook(notebook_json: Optional[str] = None,
 
     return res
 
+class Cache:
+    image_cache = {}
 
 class CodeExecutor:
     """
@@ -658,7 +660,6 @@ class CodeExecutor:
             self.client = None
 
         self.containers = []
-        self.image_cache = {}  # Cache images by dependencies hash
         self.build_log_output = []  # Store build logs for the current execution
         
     
@@ -979,6 +980,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY {notebook_filename} .
 
 # Execute the notebook using nbconvert and save to file
+RUN cp /app/temp/{notebook_filename} /app/{notebook_filename}
 """
         
         # notebook conversion for mystnb or markdown files
@@ -1012,7 +1014,10 @@ COPY {notebook_filename} .
         # Create a cache key based on dependencies and base image
         # Use a stable tag name for the same dependencies to leverage Docker layer caching
         import hashlib
-        cache_key_parts = [self.base_image]
+        import threading
+        thread_id = threading.get_ident()
+
+        cache_key_parts = [str(thread_id), self.base_image]
         if dependencies:
             cache_key_parts.extend(sorted(dependencies))
         cache_key = hashlib.md5("_".join(cache_key_parts).encode()).hexdigest()
@@ -1025,85 +1030,84 @@ COPY {notebook_filename} .
         # Process build logs to capture output (especially errors from pip install)
         self.build_log_output = []
         
-        try:
-            # Build without decode to get raw stream, we'll decode manually
-            image, build_logs = self.client.images.build(
-                path=temp_dir,
-                tag=tag_name,
-                rm=True
-            )
-            
-            # Process and log build output
-            # build_logs is a generator that yields log lines
-            for log_line in build_logs:
-                # Decode if bytes
-                if isinstance(log_line, bytes):
-                    log_line = log_line.decode('utf-8')
+        if cache_key in Cache.image_cache:
+            image = Cache.image_cache[cache_key]
+            build_logs = [f"Using cached image for key {cache_key} with tag {tag_name}"]
+        else:
+            try:
+                # Build without decode to get raw stream, we'll decode manually
+                image, build_logs = self.client.images.build(
+                    path=temp_dir,
+                    tag=tag_name,
+                    rm=True
+                )
                 
-                # Try to parse as JSON to extract stream/error messages
-                try:
-                    import json
-                    log_dict = json.loads(log_line)
+                # Process and log build output
+                # build_logs is a generator that yields log lines
+                for log_line in build_logs:
+                    # Decode if bytes
+                    if isinstance(log_line, bytes):
+                        log_line = log_line.decode('utf-8')
                     
-                    if 'stream' in log_dict:
-                        msg = log_dict['stream'].rstrip()
-                        if msg:  # Only log non-empty lines
-                            self.build_log_output.append(msg)
-                    elif 'error' in log_dict:
-                        error_msg = log_dict['error']
-                        self.build_log_output.append(f"BUILD ERROR: {error_msg}")
-                except (json.JSONDecodeError, TypeError):
-                    # If not JSON, just store the raw line
-                    log_str = str(log_line).rstrip()
-                    if log_str:
-                        self.build_log_output.append(log_str)
-                    
-        except docker.errors.BuildError as e:
-            # Capture build logs from the exception
-            self.build_log_output.append("Docker build failed with error:")
-            if hasattr(e, 'build_log') and e.build_log:
-                for log_entry in e.build_log:
-                    if isinstance(log_entry, dict):
-                        if 'stream' in log_entry:
-                            log_line = log_entry['stream'].rstrip()
-                            if log_line:
-                                self.build_log_output.append(log_line)
-                        elif 'error' in log_entry:
-                            error_msg = log_entry['error']
+                    # Try to parse as JSON to extract stream/error messages
+                    try:
+                        import json
+                        log_dict = json.loads(log_line)
+                        
+                        if 'stream' in log_dict:
+                            msg = log_dict['stream'].rstrip()
+                            if msg:  # Only log non-empty lines
+                                self.build_log_output.append(msg)
+                        elif 'error' in log_dict:
+                            error_msg = log_dict['error']
                             self.build_log_output.append(f"BUILD ERROR: {error_msg}")
-                    elif isinstance(log_entry, bytes):
-                        try:
-                            import json
-                            log_dict = json.loads(log_entry.decode('utf-8'))
-                            if 'stream' in log_dict:
-                                msg = log_dict['stream'].rstrip()
-                                if msg:
-                                    self.build_log_output.append(msg)
-                            elif 'error' in log_dict:
-                                error_msg = log_dict['error']
+                    except (json.JSONDecodeError, TypeError):
+                        # If not JSON, just store the raw line
+                        log_str = str(log_line).rstrip()
+                        if log_str:
+                            self.build_log_output.append(log_str)
+                        
+            except docker.errors.BuildError as e:
+                # Capture build logs from the exception
+                self.build_log_output.append("Docker build failed with error:")
+                if hasattr(e, 'build_log') and e.build_log:
+                    for log_entry in e.build_log:
+                        if isinstance(log_entry, dict):
+                            if 'stream' in log_entry:
+                                log_line = log_entry['stream'].rstrip()
+                                if log_line:
+                                    self.build_log_output.append(log_line)
+                            elif 'error' in log_entry:
+                                error_msg = log_entry['error']
                                 self.build_log_output.append(f"BUILD ERROR: {error_msg}")
-                        except (json.JSONDecodeError, TypeError):
-                            msg = log_entry.decode('utf-8', errors='replace')
-                            self.build_log_output.append(msg)
-                    else:
-                        self.build_log_output.append(str(log_entry))
-            else:
-                self.build_log_output.append(str(e))
+                        elif isinstance(log_entry, bytes):
+                            try:
+                                import json
+                                log_dict = json.loads(log_entry.decode('utf-8'))
+                                if 'stream' in log_dict:
+                                    msg = log_dict['stream'].rstrip()
+                                    if msg:
+                                        self.build_log_output.append(msg)
+                                elif 'error' in log_dict:
+                                    error_msg = log_dict['error']
+                                    self.build_log_output.append(f"BUILD ERROR: {error_msg}")
+                            except (json.JSONDecodeError, TypeError):
+                                msg = log_entry.decode('utf-8', errors='replace')
+                                self.build_log_output.append(msg)
+                        else:
+                            self.build_log_output.append(str(log_entry))
+                else:
+                    self.build_log_output.append(str(e))
+                
+                # Re-raise with more context
+                full_log = '\n'.join(self.build_log_output)
+                raise Exception(f"Docker build failed. Build log:\n{full_log}") from e
             
-            # Re-raise with more context
-            full_log = '\n'.join(self.build_log_output)
-            raise Exception(f"Docker build failed. Build log:\n{full_log}") from e
-        
+            
+            # Store in cache for tracking
+            Cache.image_cache[cache_key] = image
+
         self.build_time = time.time() - start_time
-        
-        # Track if this was mostly cached by checking build time
-        # Cached builds are typically much faster (<5s vs 30-60s)
-        if self.build_time < 5 and cache_key in self.image_cache:
-            # This was likely a cached build
-            pass
-        
-        # Store in cache for tracking
-        self.image_cache[cache_key] = image
         
         # Prepare container run parameters
         run_params = {
@@ -1127,6 +1131,12 @@ COPY {notebook_filename} .
         
         # Initialize volumes dictionary
         volumes = {}
+
+        # mount notebook file as read-only
+        volumes[temp_dir] = {
+            'bind': "/app/temp",
+            'mode': 'ro'
+        }
         
         # Add input volume mount if provided (read-only)
         if input_host_path is not None:
