@@ -161,8 +161,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
 
     dependencies = dependencies.copy()
     former_result = None
-
-    n_a = -1
+    reason = "Initial execution"
 
     for n_a in range(n_codefix_attempts + 1):
    
@@ -175,6 +174,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
         result.prompt = prompt
+        result.reason = reason
 
         if status_display is not None:
             status_display.add_progress(1)
@@ -203,6 +203,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
 
                     if len(new_dependencies) > 0:
                         dependencies.extend(new_dependencies)
+                        reason = f"Execution after adding dependencies: {', '.join(new_dependencies)}"
                         #print(f"Executing again with new dependencies: {new_dependencies}")
                         continue
             
@@ -215,6 +216,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
             if new_code is not None:
                 code = new_code
                 #print(f"Executing again with new code: {code[:100]}")
+                reason = "Execution after fixing code"
                 continue
         if status_display is not None:
             status_display.add_progress(n_codefix_attempts - n_a)
@@ -452,6 +454,7 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
         feedback=feedback,
     )
     res = generate_run(generation_prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+    res.reason = "Executing code after incorporating feedback"
     
     return res
 
@@ -530,6 +533,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         # incorporating feedback
         #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+        res.reason = "Exe"
 
         #print("len code (aft):", len(res.code))
 
@@ -665,6 +669,7 @@ jupytext:
     from ._executor import execute_notebook
     res = execute_notebook(notebook_mystnb=notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
     res.prompt = prompt
+    res.reason = "Final touch"
 
     #feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
     #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)

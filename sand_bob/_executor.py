@@ -44,6 +44,7 @@ class ExecutionResult:
     build_log: Optional[List[str]] = None
     summary: Optional[str] = None
     error: Optional[str] = None
+    reason: Optional[str] = None
 
     def _repr_html_(self):
         from IPython.display import display, HTML
@@ -210,6 +211,8 @@ class ExecutionResult:
             details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
             
             # Basic info
+            if self.reason is not None:
+                details_html += f"<li><strong>Execution reason:</strong> {self.reason}</li>"
             if self.final_result is not None:
                 details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
             if self.summary is not None:
