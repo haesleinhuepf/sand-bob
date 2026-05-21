@@ -489,7 +489,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     """
 
     from IPython.display import display, Markdown, HTML
-    from ._utilities import markdown_to_html
+    from ._utilities import markdown_to_html, objects_identical
     from ._statusdisplay import StatusDisplay
     from ._executor import CodeExecutor
     import time
@@ -551,8 +551,18 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
         status_display.update("Final touch")
-        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
-        prefix_former_result(res, former_result)
+        for _ in range(3):
+            ft_res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
+            success = objects_identical(res.final_result, ft_res.final_result)
+            if success:
+                break
+
+        if success:
+            prefix_former_result(ft_res, former_result)
+            res = ft_res
+        else:
+            # add a note to res, that final_touch failed
+            pass
 
     status_display.update("")
     res.total_time = time.time() - start_time

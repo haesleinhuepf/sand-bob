@@ -565,3 +565,16 @@ def fix_json(s: str, max_retries: int = 20):
             # Different error: fail fast (or add more heuristics as needed)
             raise
     raise ValueError("Failed to repair JSON after multiple attempts")
+
+
+def objects_identical(object1, object2):
+    """
+    Check if two objects are identical by comparing their JSON representations.
+    """
+    try:
+        json1 = json.dumps(object1, sort_keys=True)
+        json2 = json.dumps(object2, sort_keys=True)
+        return json1 == json2
+    except (TypeError, ValueError):
+        # If objects are not JSON serializable, fall back to direct comparison
+        return object1 == object2
