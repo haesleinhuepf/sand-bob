@@ -2,6 +2,8 @@ import time
 import tempfile
 import os
 import json
+import html
+import uuid
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 import docker
@@ -52,6 +54,8 @@ class ExecutionResult:
 
         self._create_widget()
         display(self.widget)
+        if self.save_notebook_output is not None:
+            display(self.save_notebook_output)
 
         if not self.render_inline:
             return ""
@@ -67,9 +71,9 @@ class ExecutionResult:
                 if output["type"] == "image/png":
                     parsed_output += f"<p><img src='data:image/png;base64,{output['data']}'/></p>"
                 elif output["type"] == "text/plain":
-                    parsed_output += f"<pre>{output['data']}</pre>"
+                    parsed_output += f"<pre>{html.escape(str(output['data']))}</pre>"
                 else:
-                    parsed_output += f"<pre>{output['data']}</pre>"
+                    parsed_output += f"<pre>{html.escape(str(output['data']))}</pre>"
 
         return parsed_output
 
@@ -78,259 +82,291 @@ class ExecutionResult:
     #    self._create_widget()
 
     def _create_widget(self, include_chain_selector: bool = True):
-        """Create the main widget interface with tabs.
-
-        Args:
-            include_chain_selector: When True, show a dropdown above the tabs
-                to navigate the chain of `former_result` starting from the
-                earliest result to the current one. When False, render only
-                this result's tabs (used for nested rendering).
-        """
-        # Create output widgets
-        self.details_output = widgets.Output()
-        self.stdout_output = widgets.Output()
-        self.stderr_output = widgets.Output()
-        self.code_output = widgets.Output()
-        self.prompt_output = widgets.Output()
-        self.output_display = widgets.Output()
-        
-        # Create save notebook output if notebook file exists
+        """Create the main interface using HTML tabs and optional history selector."""
+        # Keep ipywidgets only for the save notebook section.
         self.save_notebook_output = None
         if self.files and '/display_output/notebook_executed.ipynb' in self.files:
             self.save_notebook_output = widgets.Output()
-            # Populate save notebook content immediately
             self._populate_save_notebook()
-        
-        # Create tab children in the specified order: output, code, details, stdout, stderr, save notebook
-        tab_children = [self.output_display, self.code_output, self.prompt_output, self.details_output, self.stdout_output, self.stderr_output]
-        tab_titles = ["Output", "Code", "Prompt", "Details", "StdOut", "StdErr"]
-        
-        # Add save notebook tab if it exists
-        if self.save_notebook_output:
-            tab_children.append(self.save_notebook_output)
-            tab_titles.append("Save Notebook")
-        
-        # Create the tab widget
-        self.tab_widget = widgets.Tab()
-        self.tab_widget.children = tab_children
-        
-        # Set tab titles
-        for i, title in enumerate(tab_titles):
-            self.tab_widget.set_title(i, title)
-        
-        # Add styling to the tab widget
-        self.tab_widget.layout = widgets.Layout(
-            width='100%',
-            height='auto'
-        )
-        
-        # Populate all tabs immediately for this result
-        self._populate_output()
-        self._populate_code()
-        self._populate_prompt()
-        self._populate_details()
-        self._populate_stdout()
-        self._populate_stderr()
 
-        # If requested, create a dropdown that lets the user switch between
-        # this result and all of its former_result ancestors. The list starts
-        # with the earliest result (no former_result) and ends with current.
+        chain: List[ExecutionResult] = [self]
         if include_chain_selector:
-            # Build the chain from oldest to newest
-            chain: List[ExecutionResult] = []
+            chain = []
             cursor = self
+            seen = set()
             while cursor is not None:
-                if cursor is cursor.former_result:
-                    print(f"Cursor is same as former_result")
+                cursor_id = id(cursor)
+                if cursor_id in seen:
                     break
-                if cursor in chain:
-                    print(f"Cycle detected in chain")
-                    break
-                chain.append(cursor)    
+                seen.add(cursor_id)
+                chain.append(cursor)
                 cursor = cursor.former_result
             chain = list(reversed(chain))
 
-            if len(chain) > 1:
-                # Prepare widgets for each result in the chain without their own selector
-                chain_widgets = []
-                for r in chain:
-                    # Avoid re-creating if widget exists and is suitable
-                    r._create_widget(include_chain_selector=False)
-                    chain_widgets.append(r.widget if hasattr(r, 'widget') else self.tab_widget)
+        root_id = f"sb-res-{uuid.uuid4().hex}"
+        sections_html = []
+        options_html = []
 
-                # Labels: Result 1..N with simple descriptors
-                def make_label(idx: int, r: "ExecutionResult") -> str:
-                    label = f"Result {idx+1}"
-                    try:
-                        if hasattr(r, 'exit_code'):
-                            label += f" (exit {r.exit_code})"
-                    except Exception:
-                        pass
-                    return label
+        for i, result in enumerate(chain):
+            label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
+            options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
+            section_style = "" if i == len(chain) - 1 else "display:none;"
+            sections_html.append(
+                f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
+                f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
+            )
 
-                options = [(make_label(i, r), i) for i, r in enumerate(chain)]
-                dropdown = widgets.Dropdown(
-                    options=options,
-                    value=len(chain) - 1,
-                    description='History:',
-                    style={'description_width': '90px'},
-                    layout=widgets.Layout(width='auto')
-                )
+        history_selector_html = ""
+        if include_chain_selector and len(chain) > 1:
+            history_selector_html = (
+                f"<div class='sb-history-bar'>"
+                f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
+                f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
+                f"</div>"
+            )
 
-                # Container to hold the currently selected result's tabs
-                selected_container = widgets.Box()
+        script_html = ""
+        if include_chain_selector and len(chain) > 1:
+            default_index = len(chain) - 1
+            script_html = f"""
+<script>
+(function() {{
+  const root = document.getElementById('{root_id}');
+  if (!root) return;
+  const select = root.querySelector('#{root_id}-history');
+  const panels = Array.from(root.querySelectorAll('.sb-history-panel'));
+  if (!select) return;
+  select.value = '{default_index}';
+  const show = function(index) {{
+    panels.forEach(function(panel) {{
+      panel.style.display = panel.dataset.index === String(index) ? '' : 'none';
+    }});
+  }};
+  select.addEventListener('change', function() {{
+    show(select.value);
+  }});
+  show(select.value);
+}})();
+</script>
+"""
 
-                def update_selected(index: int):
-                    selected_widget = chain_widgets[index]
-                    selected_container.children = (selected_widget,)
+        html_content = f"""
+<div id='{root_id}' class='sb-result-root'>
+  {self._tabs_css()}
+  {history_selector_html}
+  {''.join(sections_html)}
+</div>
+{script_html}
+"""
+        self.widget = HTML(html_content)
 
-                def on_change(change):
-                    if change.get('name') == 'value' and change.get('type') == 'change':
-                        update_selected(change['new'])
+    def _tabs_css(self) -> str:
+        return """
+<style>
+.sb-result-root { margin-top: 8px; }
+.sb-history-bar { margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.sb-history-label { font-weight: 600; font-size: 13px; }
+.sb-history-select { padding: 3px 8px; border: 1px solid #c5c5c5; border-radius: 4px; background: white; }
+.sb-tabs { border: 1px solid #d8d8d8; border-radius: 4px; background: white; }
+.sb-tab-buttons { display: flex; align-items: flex-end; gap: 0; border-bottom: 1px solid #d8d8d8; background: #f7f7f7; overflow-x: auto; }
+.sb-tab-btn { border: 0; border-right: 1px solid #dddddd; background: #f2f2f2; color: #333; padding: 7px 12px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.sb-tab-btn:hover { background: #ebebeb; }
+.sb-tab-btn.active { background: white; font-weight: 600; border-bottom: 2px solid white; }
+.sb-tab-content { padding: 12px; }
+.sb-tab-panel { display: none; }
+.sb-tab-panel.active { display: block; }
+</style>
+"""
 
-                dropdown.observe(on_change, names='value')
-                update_selected(len(chain) - 1)
+    def _build_tabs_html(self, root_id: str) -> str:
+        tabs = [
+            ("Output", self._output_html()),
+            ("Code", self._code_html()),
+            ("Prompt", self._prompt_html()),
+            ("Details", self._details_html()),
+            ("StdOut", self._stdout_html()),
+            ("StdErr", self._stderr_html()),
+        ]
 
-                # Compose final widget with dropdown on top
-                self.widget = widgets.VBox([dropdown, selected_container])
-                return
+        buttons = []
+        panels = []
+        for i, (title, body) in enumerate(tabs):
+            active = " active" if i == 0 else ""
+            panel_display = " active" if i == 0 else ""
+            buttons.append(
+                f"<button class='sb-tab-btn{active}' type='button' data-tab-index='{i}'>{html.escape(title)}</button>"
+            )
+            panels.append(
+                f"<div class='sb-tab-panel{panel_display}' data-panel-index='{i}'>{body}</div>"
+            )
 
-        # Default: no chain selector, expose only this tab widget
-        self.widget = self.tab_widget
+        script = f"""
+<script>
+(function() {{
+  const root = document.getElementById('{root_id}');
+  if (!root) return;
+  const buttons = Array.from(root.querySelectorAll('.sb-tab-btn'));
+  const panels = Array.from(root.querySelectorAll('.sb-tab-panel'));
+  const activate = function(index) {{
+    buttons.forEach(function(btn) {{
+      btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
+    }});
+    panels.forEach(function(panel) {{
+      panel.classList.toggle('active', panel.dataset.panelIndex === String(index));
+    }});
+  }};
+  buttons.forEach(function(btn) {{
+    btn.addEventListener('click', function() {{
+      activate(btn.dataset.tabIndex);
+    }});
+  }});
+  activate(0);
+}})();
+</script>
+"""
+
+        return (
+            f"<div id='{root_id}' class='sb-tabs'>"
+            f"<div class='sb-tab-buttons'>{''.join(buttons)}</div>"
+            f"<div class='sb-tab-content'>{''.join(panels)}</div>"
+            f"</div>{script}"
+        )
 
 
 
 
     def _populate_details(self):
         """Populate the details section."""
-        with self.details_output:
-            self.details_output.clear_output(wait=True)
-            
-            details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
-            
-            # Basic info
-            if self.reason is not None:
-                details_html += f"<li><strong>Execution reason:</strong> {self.reason}</li>"
-            if self.final_result is not None:
-                details_html += f"<li><strong>Final result:</strong> {self.final_result}</li>"
-            if self.summary is not None:
-                details_html += f"<li><strong>Summary:</strong> {self.summary}</li>"
-                
-            details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
-            if self.build_time is not None:
-                details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
-            if self.run_time is not None:
-                details_html += f"<li><strong>Run Time:</strong> {self.run_time:.2f}s</li>"
-            details_html += f"<li><strong>Execution Time:</strong> {self.execution_time:.2f}s</li>"
-
-            if self.total_time is not None:
-                details_html += f"<li><strong>Total Time:</strong> {self.total_time:.2f}s</li>"
-            
-            if self.container_id:
-                details_html += f"<li><strong>Container ID:</strong> {self.container_id}</li>"
-            
-            if self.dependencies:
-                details_html += f"<li><strong>Dependencies:</strong> {', '.join(self.dependencies)}</li>"
-            
-            if self.files and len(self.files) > 0:
-                details_html += "<li><strong>Files:</strong><ul>"
-                for file, content in self.files.items():
-                    details_html += f"<li>{file}</li>"
-                details_html += "</ul></li>"
-            
-            if self.n_codefix_attempts is not None:
-                details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
-            
-            
-            
-            if self.traceback:
-                details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.traceback}</pre></li>"
-
-            if self.feedback:
-                details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{self.feedback}</pre></li>"
-            
-            if self.build_log:
-                build_log_text = '\n'.join(self.build_log)
-                # Truncate if too long (show first and last parts)
-                if len(build_log_text) > 10000:
-                    lines = self.build_log
-                    first_lines = '\n'.join(lines[:50])
-                    last_lines = '\n'.join(lines[-50:])
-                    build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
-                details_html += f"<li><strong>Build Log:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{build_log_text}</pre></li>"
-            
-            details_html += "</ul></div>"
-            display(HTML(details_html))
+        display(HTML(self._details_html()))
 
     def _populate_stdout(self):
         """Populate the stdout section."""
-        with self.stdout_output:
-            self.stdout_output.clear_output(wait=True)
-            if self.stdout:
-                display(HTML(f"<div><h4>Standard Output</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{self.stdout}</pre></div>"))
-            else:
-                display(HTML("<div><h4>Standard Output</h4><p><em>No output</em></p></div>"))
+        display(HTML(self._stdout_html()))
 
     def _populate_stderr(self):
         """Populate the stderr section."""
-        with self.stderr_output:
-            self.stderr_output.clear_output(wait=True)
-            if self.stderr:
-                display(HTML(f"<div><h4>Standard Error</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{self.stderr}</pre></div>"))
-            else:
-                display(HTML("<div><h4>Standard Error</h4><p><em>No errors</em></p></div>"))
+        display(HTML(self._stderr_html()))
 
     def _populate_code(self):
         """Populate the code section."""
-        with self.code_output:
-            self.code_output.clear_output(wait=True)
-            if self.code:
-                # Check if the code is a notebook
-                from ._utilities import is_notebook
-                if is_notebook(self.code):
-                    import json
-                    notebook_data = json.loads(self.code)
-                    
-                    # Extract source code from notebook cells
-                    source_code = ""
-                    if "cells" in notebook_data:
-                        for i, cell in enumerate(notebook_data["cells"]):
-                            if cell.get("cell_type") == "code":
-                                # Add cell number and source code
-                                cell_source = cell.get("source", "")
-                                if isinstance(cell_source, list):
-                                    cell_source = "".join(cell_source)
-                                
-                                source_code += f"# Cell {i+1}\n{cell_source}\n\n"
-                    
-                    display(HTML(f"<div><h4>Executed Code (from notebook)</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{source_code}</pre></div>"))
-                else:
-                    # Regular code, display as-is
-                    display(HTML(f"<div><h4>Executed Code</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.code}</pre></div>"))
-            else:
-                display(HTML("<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"))
+        display(HTML(self._code_html()))
 
     def _populate_prompt(self):
         """Populate the prompt section."""
-        with self.prompt_output:
-            self.prompt_output.clear_output(wait=True)
-            if self.prompt:
-                display(HTML(f"<div><h4>Prompt</h4><pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{self.prompt}</pre></div>"))
-            else:
-                display(HTML("<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"))
+        display(HTML(self._prompt_html()))
 
 
     def _populate_output(self):
         """Populate the output section."""
-        with self.output_display:
-            self.output_display.clear_output(wait=True)
-            
-            output_html = "<div><h4>Execution Output</h4>"
-            
-            output_html += self._html_output()
-            
-            output_html += "</div>"
-            display(HTML(output_html))
+        display(HTML(self._output_html()))
+
+    def _output_html(self) -> str:
+        return "<div><h4>Execution Output</h4>" + self._html_output() + "</div>"
+
+    def _stdout_html(self) -> str:
+        if self.stdout:
+            return (
+                "<div><h4>Standard Output</h4>"
+                f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{html.escape(self.stdout)}</pre></div>"
+            )
+        return "<div><h4>Standard Output</h4><p><em>No output</em></p></div>"
+
+    def _stderr_html(self) -> str:
+        if self.stderr:
+            return (
+                "<div><h4>Standard Error</h4>"
+                f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{html.escape(self.stderr)}</pre></div>"
+            )
+        return "<div><h4>Standard Error</h4><p><em>No errors</em></p></div>"
+
+    def _code_html(self) -> str:
+        if not self.code:
+            return "<div><h4>Executed Code</h4><p><em>No code available</em></p></div>"
+
+        from ._utilities import is_notebook
+        if is_notebook(self.code):
+            notebook_data = json.loads(self.code)
+            source_code = ""
+            for i, cell in enumerate(notebook_data.get("cells", [])):
+                if cell.get("cell_type") == "code":
+                    cell_source = cell.get("source", "")
+                    if isinstance(cell_source, list):
+                        cell_source = "".join(cell_source)
+                    source_code += f"# Cell {i+1}\\n{cell_source}\\n\\n"
+            return (
+                "<div><h4>Executed Code (from notebook)</h4>"
+                f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(source_code)}</pre></div>"
+            )
+
+        return (
+            "<div><h4>Executed Code</h4>"
+            f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(self.code)}</pre></div>"
+        )
+
+    def _prompt_html(self) -> str:
+        if self.prompt:
+            return (
+                "<div><h4>Prompt</h4>"
+                f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(self.prompt)}</pre></div>"
+            )
+        return "<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"
+
+    def _details_html(self) -> str:
+        details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
+
+        if self.reason is not None:
+            details_html += f"<li><strong>Execution reason:</strong> {html.escape(str(self.reason))}</li>"
+        if self.final_result is not None:
+            details_html += f"<li><strong>Final result:</strong> {html.escape(str(self.final_result))}</li>"
+        if self.summary is not None:
+            details_html += f"<li><strong>Summary:</strong> {html.escape(str(self.summary))}</li>"
+
+        details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
+        if self.build_time is not None:
+            details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
+        if self.run_time is not None:
+            details_html += f"<li><strong>Run Time:</strong> {self.run_time:.2f}s</li>"
+        details_html += f"<li><strong>Execution Time:</strong> {self.execution_time:.2f}s</li>"
+
+        if self.total_time is not None:
+            details_html += f"<li><strong>Total Time:</strong> {self.total_time:.2f}s</li>"
+
+        if self.container_id:
+            details_html += f"<li><strong>Container ID:</strong> {html.escape(str(self.container_id))}</li>"
+
+        if self.dependencies:
+            deps = ', '.join([html.escape(str(dep)) for dep in self.dependencies])
+            details_html += f"<li><strong>Dependencies:</strong> {deps}</li>"
+
+        if self.files and len(self.files) > 0:
+            details_html += "<li><strong>Files:</strong><ul>"
+            for file, _content in self.files.items():
+                details_html += f"<li>{html.escape(str(file))}</li>"
+            details_html += "</ul></li>"
+
+        if self.n_codefix_attempts is not None:
+            details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
+
+        if self.traceback:
+            details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.traceback)}</pre></li>"
+
+        if self.feedback:
+            details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.feedback)}</pre></li>"
+
+        if self.build_log:
+            build_log_text = '\n'.join(self.build_log)
+            if len(build_log_text) > 10000:
+                lines = self.build_log
+                first_lines = '\n'.join(lines[:50])
+                last_lines = '\n'.join(lines[-50:])
+                build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
+            details_html += (
+                "<li><strong>Build Log:</strong>"
+                f"<pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{html.escape(build_log_text)}</pre></li>"
+            )
+
+        details_html += "</ul></div>"
+        return details_html
 
     def display_output(self):
         display(HTML("<pre>" + self._html_output() + "</pre>"))    
@@ -542,48 +578,73 @@ class ExecutionResultList:
         self._create_tabbed_interface()
     
     def _create_tabbed_interface(self):
-        """Create the tabbed widget interface."""
-        # Create tab children (overview + each execution result)
-        self.overview_output = widgets.Output()
-        self._populate_overview()
+                """Create an HTML tab interface (ipywidgets-free)."""
+                tab_titles = ["Overview"]
+                tab_panels = [self._populate_overview()]
 
-        tab_children = [self.overview_output]
-        tab_titles = ["Overview"]
+                for i, result in enumerate(self.results):
+                        if result is None:
+                                continue
 
-        for i, result in enumerate(self.results):
-            if result is None:
-                continue
-            temp = result.render_inline if hasattr(result, 'render_inline') else True
-            # Set render_inline to False to prevent automatic display
-            result.render_inline = False
-            
-            # Create the widget for this result
-            result._create_widget()
-            
-            # Combine header and result widget
-            if hasattr(result, 'widget'):
-                tab_content = result.widget
-                tab_children.append(tab_content)
-                if i < len(self.tab_names):
-                    tab_titles.append(self.tab_names[i])
-                else:
-                    tab_titles.append(f"Result {i + 1}")
+                        temp = result.render_inline if hasattr(result, 'render_inline') else True
+                        result.render_inline = False
+                        result._create_widget(include_chain_selector=False)
 
-            result.render_inline = temp
-        
-        # Create the tab widget
-        self.tab_widget = widgets.Tab()
-        self.tab_widget.children = tab_children
-        
-        # Set tab titles
-        for i, name in enumerate(tab_titles):
-            self.tab_widget.set_title(i, name)
-        
-        # Add some styling to the tab widget
-        self.tab_widget.layout = widgets.Layout(
-            width='100%',
-            height='auto'
-        )
+                        if hasattr(result, 'widget'):
+                                tab_content = result.widget.data if hasattr(result.widget, 'data') else str(result.widget)
+                                tab_panels.append(tab_content)
+                                if i < len(self.tab_names):
+                                        tab_titles.append(self.tab_names[i])
+                                else:
+                                        tab_titles.append(f"Result {i + 1}")
+
+                        result.render_inline = temp
+
+                root_id = f"sb-list-{uuid.uuid4().hex}"
+                buttons = []
+                panels = []
+                for i, title in enumerate(tab_titles):
+                        active = " active" if i == 0 else ""
+                        buttons.append(
+                                f"<button class='sb-tab-btn{active}' type='button' data-tab-index='{i}'>{html.escape(str(title))}</button>"
+                        )
+                        panel_class = "sb-tab-panel active" if i == 0 else "sb-tab-panel"
+                        panel_html = tab_panels[i] if i < len(tab_panels) else ""
+                        panels.append(f"<div class='{panel_class}' data-panel-index='{i}'>{panel_html}</div>")
+
+                self.tab_widget_html = HTML(
+                        f"""
+<div id='{root_id}' class='sb-result-root'>
+    {ExecutionResult._tabs_css(self)}
+    <div class='sb-tabs'>
+        <div class='sb-tab-buttons'>{''.join(buttons)}</div>
+        <div class='sb-tab-content'>{''.join(panels)}</div>
+    </div>
+</div>
+<script>
+(function() {{
+    const root = document.getElementById('{root_id}');
+    if (!root) return;
+    const buttons = Array.from(root.querySelectorAll('.sb-tab-btn'));
+    const panels = Array.from(root.querySelectorAll('.sb-tab-panel'));
+    const activate = function(index) {{
+        buttons.forEach(function(btn) {{
+            btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
+        }});
+        panels.forEach(function(panel) {{
+            panel.classList.toggle('active', panel.dataset.panelIndex === String(index));
+        }});
+    }};
+    buttons.forEach(function(btn) {{
+        btn.addEventListener('click', function() {{
+            activate(btn.dataset.tabIndex);
+        }});
+    }});
+    activate(0);
+}})();
+</script>
+"""
+                )
 
     def _get_final_results(self) -> List[Any]:
         """Collect non-empty final results from the list."""
@@ -910,23 +971,72 @@ class ExecutionResultList:
         display(HTML(table_html))
 
     def _populate_overview(self):
-        """Populate overview tab with adaptive visualization of final_result values."""
-        with self.overview_output:
-            self.overview_output.clear_output(wait=True)
+        """Build overview tab content as HTML."""
+        type_counts = {
+            "numeric": 0,
+            "string": 0,
+            "image": 0,
+            "dataframe": 0,
+            "other": 0,
+        }
 
-            final_results = self._get_final_results()
-            if final_results:
-                
-                self.display_result_summary(headline=True)
+        final_results = self._get_final_results()
+        for value in final_results:
+            type_counts[self._classify_final_result(value)] += 1
 
-            self.display_result_history(headline=True)
+        dominant_type = self._dominant_result_type(final_results) if final_results else "none"
 
-            from  ._config import config
-            display(HTML(config._repr_html_()))
+        summary_html = (
+            "<div style='margin:10px 0 14px 0;'>"
+            "<h5 style='margin:0 0 8px 0;'>Result summary</h5>"
+            f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
+            f"<p><strong>Dominant type:</strong> {html.escape(str(dominant_type))}</p>"
+            f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
+            f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
+            "</div>"
+        )
+
+        rows_html = []
+        for row_index, result in enumerate(self.results):
+            chain = self._trace_result_chain(result)
+
+            if not chain:
+                row_cells = "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+            else:
+                result_values = [getattr(item, "final_result", None) for item in chain]
+                for i, item in enumerate(chain):
+                    if item.error is not None:
+                        result_values[i] = item.error
+                row_cells = "".join(self._format_simplified_final_result_td(r) for r in result_values)
+
+            rows_html.append(
+                "<tr>"
+                f"<td style='padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;white-space:nowrap;'><strong>Process {row_index + 1}</strong></td>"
+                f"{row_cells}"
+                "</tr>"
+            )
+
+        history_html = (
+            "<div style='margin:10px 0 14px 0;'>"
+            "<h5 style='margin:0 0 8px 0;'>Result tracing</h5>"
+            "Results changed from iteration to iteration as follows (final results on the right):"
+            "</div>"
+            "<div style='overflow-x:auto;'>"
+            "<table style='border-collapse:collapse;width:max-content;min-width:100%;font-family:monospace;font-size:12px;'>"
+            "<tbody>"
+            f"{''.join(rows_html)}"
+            "</tbody>"
+            "</table>"
+            "</div>"
+        )
+
+        from ._config import config
+        config_html = config._repr_html_()
+        return summary_html + history_html + config_html
 
     def display(self):
         """Display the tabbed interface."""
-        display(self.tab_widget)
+        display(self.tab_widget_html)
     
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
