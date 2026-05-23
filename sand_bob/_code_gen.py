@@ -155,14 +155,13 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
         Final execution result containing updated code, dependencies, and
         attempt metadata.
     """
-    from sand_bob import execute, execute_notebook
-    from sand_bob._utilities import is_notebook
-    from sand_bob._executor import ExecutionResult
+    from ._executor import execute, execute_notebook
+    from ._utilities import is_notebook
+    from ._results import ExecutionResult
 
     dependencies = dependencies.copy()
     former_result = None
-
-    n_a = -1
+    reason = "Initial execution"
 
     for n_a in range(n_codefix_attempts + 1):
    
@@ -175,6 +174,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
         else:
             result = execute(code, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
         result.prompt = prompt
+        result.reason = reason
 
         if status_display is not None:
             status_display.add_progress(1)
@@ -203,6 +203,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
 
                     if len(new_dependencies) > 0:
                         dependencies.extend(new_dependencies)
+                        reason = f"Execution after adding dependencies: {', '.join(new_dependencies)}"
                         #print(f"Executing again with new dependencies: {new_dependencies}")
                         continue
             
@@ -215,6 +216,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
             if new_code is not None:
                 code = new_code
                 #print(f"Executing again with new code: {code[:100]}")
+                reason = "Execution after fixing code"
                 continue
         if status_display is not None:
             status_display.add_progress(n_codefix_attempts - n_a)
@@ -452,6 +454,7 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
         feedback=feedback,
     )
     res = generate_run(generation_prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+    res.reason = "Executing code after incorporating feedback"
     
     return res
 
@@ -486,7 +489,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     """
 
     from IPython.display import display, Markdown, HTML
-    from ._utilities import markdown_to_html
+    from ._utilities import markdown_to_html, objects_identical
     from ._statusdisplay import StatusDisplay
     from ._executor import CodeExecutor
     import time
@@ -530,6 +533,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         # incorporating feedback
         #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
+        res.reason = "Exe"
 
         #print("len code (aft):", len(res.code))
 
@@ -547,8 +551,18 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
         status_display.update("Final touch")
-        res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
-        prefix_former_result(res, former_result)
+        for _ in range(3):
+            ft_res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
+            success = objects_identical(res.final_result, ft_res.final_result)
+            if success:
+                break
+
+        if success:
+            prefix_former_result(ft_res, former_result)
+            res = ft_res
+        else:
+            # add a note to res, that final_touch failed
+            pass
 
     status_display.update("")
     res.total_time = time.time() - start_time
@@ -586,9 +600,9 @@ def python_code_to_beautiful_notebook(source, original_task="", dependencies=[],
         Execution result of the transformed notebook.
     """
     from ._config import config
-    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
+    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json, remove_bracketed_markdown_fences
 
-    dependencies_str = ", ".join(dependencies)
+    dependencies_str = "<small><pre>pip install " + " ".join(dependencies) + "</pre></small>"
 
     original_task_prompt = ""
     if original_task:
@@ -626,7 +640,7 @@ Original task:
     #print("prompt:", prompt)
 
     notebook_str = config.prompt_function_notebook_conversion(prompt)
-    #notebook_str = remove_outer_markdown(notebook_str)
+    notebook_str = remove_bracketed_markdown_fences(notebook_str)
     if "```markdown" in notebook_str:
         notebook_str = "```markdown".join(notebook_str.split("```markdown")[1:])
         notebook_str = "```".join(notebook_str.split("```")[:-1])
@@ -644,7 +658,7 @@ jupytext:
     format_version: '0.13'
     jupytext_version: 1.13.8
 ---
-""" + notebook_str.split("\n---\n")[-1] 
+""" + dependencies_str + notebook_str.split("\n---\n")[-1] 
 
     #print("result:", notebook_str)
 
@@ -665,6 +679,7 @@ jupytext:
     from ._executor import execute_notebook
     res = execute_notebook(notebook_mystnb=notebook_str, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
     res.prompt = prompt
+    res.reason = "Final touch"
 
     #feedback = generate_code_feedback(code=res.code, list_of_objects=res.outputs, purpose="The markdown cells in this notebook should fit to the code cells and respective output. Refine the markdown cells only. Leave the code as it is.")
     #res = incorporate_feedback(code=res.code, prompt=original_task, feedback=feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path)
@@ -704,7 +719,7 @@ def generate_code(*args, **kwargs):
     ExecutionResult or ExecutionResultList
         Wrapped execution result.
     """
-    from ._executor import ExecutionResultList
+    from ._results import ExecutionResultList
     result = generate_and_optimize_code(*args, **kwargs)
     if isinstance(result, list):
         return ExecutionResultList(result)

@@ -1,0 +1,73 @@
+name: jupyter-book
+
+on:
+  pull_request:
+    paths:
+      - "examples/**"
+      - ".github/workflows/jupyter-book.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/**"
+      - ".github/workflows/jupyter-book.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install "jupyter-book<2"
+
+      - name: Build Jupyter Book
+        run: jb build examples
+
+      - name: Upload HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jupyter-book-html
+          path: examples/_build/html
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install "jupyter-book<1"
+
+      - name: Build Jupyter Book
+        run: jb build examples
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: examples/_build/html

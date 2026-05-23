@@ -1,25 +1,20 @@
 # Sand-Bob
 
-A framework for studying language models and prompt-engineering performance in the context of  single-script code generation for data analysis. sand-bob allows you to
-* generate code in parallel and sequentially using the same prompt 
-* fix errors in code automatically iteratively
-* study code execution results with defined statistical power
-* do prompt engineering properly
-* compare language models
+LLM-based code generation and docker-sandboxed execution in a loop in parallel
 
-![](docs/counting_blobs.gif)
+![](docs/alice-teaser-small.gif)
+
+Sand-Bob is a framework for studying language models and prompt-engineering performance in the context of single-script code generation for data analysis. Sand-Bob allows you to
+* [generate code using LLMs and execute it transparently in docker containers](examples/basic_usage.ipynb), including [gpu-support](examples/gpu-support.ipynb)
+* [simplistic Jupyter notebook generation from within notebooks using the `%%alice` magic command](examples/alice.ipynb)
+* [generate and execute code in parallel and sequentially using the same prompt to study consistency between AI-generated code execution results](examples/consistency_visualization.ipynb)
+* fix errors and improve code fully automatically, iteratively
+* study code execution results beyond single execution to gain statistical power
+* do prompt engineering including measuring functional correctness of generated code
+* [benchmark language models for code generation and determine functional correctness](examples/benchmarking_llms.ipynb)
+* Using the `%%alice`magic command, you can use Sand-Bob for [data analysis by prompting for code you do not review before executing it](examples/alice.ipynb).
 
 Note: This is research software under active development. The API may break with every new release.
-
-## Features
-
-- Python code generation using LLMs
-- Execute Python code in isolated Docker containers
-- Automatic detection of missing dependencies
-- Automatic fixing of code errors
-- Automatic generation and incorporation of code feedback
-- Convenient display in Jupyter
-- Code export as Jupyter Notebooks
 
 ## Installation
 
@@ -27,16 +22,32 @@ Note: This is research software under active development. The API may break with
 pip install sand-bob
 ```
 
-Additionally, you need a local [docker](https://docs.docker.com/engine/install/) installation.
+Additionally, you need a local [docker](https://docs.docker.com/engine/install/) installation. Sand-Bob was tested on Windows 11 so far only. In this environment, you also need to install WSL2 to get docker to work.
 
-## Basic usage
+Finally, you need to configure access to an OpenAI-API-compatible language model server. Just sent these environment variables:
 
-Before you can start prompting for code, you need to configure the environment where the AI-generate code can be executed and what files it will have [read] access to.
+```
+SANDBOB_LLM_SERVER = https://url/v1
+SANDBOB_LLM_API_KEY = sk_...
+```
+
+**Note:** It is recommended to use locally hosted language models (e.g. using [ollama](https://ollama.com)) or souvereign institutional infrastructure for this. As many prompts are sent to the LLM-server while optimizing code [potentially in parallel], costs may be high when using paid LLM-servers.
+
+## Basic programmatic usage
+
 
 ```
 from sand_bob import initialize, config_ollama, generate_code
 
 config_ollama(model="gpt-oss:20b", vision_model="gemma3:12b")
+
+```
+
+
+Before you can start prompting for code, you need to configure the environment where the AI-generate code can be executed and what files it will have [read] access to. 
+
+```
+from sand_bob import initialize, generate_code
 
 initialize(input_host_path="input_data/", 
            n_parallel=1, 
@@ -146,7 +157,7 @@ result = execute(code, dependencies=[])
 print(result.stdout)
 ```
 
-### Result  tracing
+### Result history
 
 During the process of code improvement, error messages and results are stored. You can visualize them to differentiate cases, where finding a solution was straight-forward:
 
@@ -159,20 +170,18 @@ During the process of code improvement, error messages and results are stored. Y
 
 Note that even if multiple code generations / executions return the same result, does not necessarily mean the result is correct.
 
-## Examples
+## Limitations
 
-Check out the `examples/` directory for more detailed examples.
-
-## Requirements
-
-- Docker
-- Docker Compose
-- Python 3.8+
+* The docker containers do not have acceess to the internet while executing code. This is an intentional security constraint and also meant to optimize execution time. If code within containers downloads the same AI model over and over this is highly inefficient and will waste resources. If you seek to download files or AI models to use them within the code-execution loop, download these models locally and give the container access to the folder where the files are stored.
+* So far Sand-Bob was only tested on Windows 11 with Docker Desktop and WSL2 installed.
 
 ## Similar Projects
 
 * [SandboxAI](https://github.com/substratusai/sandboxai)
-
+* [llm-sandbox](https://github.com/vndee/llm-sandbox)
+* [ai-code-sandbox](https://github.com/typper-io/ai-code-sandbox)
+* [open-harness](https://github.com/ryaneggz/open-harness)
+* [microsandbox](https://github.com/superradcompany/microsandbox)
 
 ## License
 

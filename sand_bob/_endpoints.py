@@ -1,5 +1,12 @@
+import os
+
+SANDBOB_LLM_SERVER = os.environ.get('SANDBOB_LLM_SERVER', "http://localhost:11434/v1")
+SANDBOB_LLM_API_KEY = os.environ.get('SANDBOB_LLM_API_KEY', "none")
 
 def prompt_ollama(message:str, model="gpt-oss:20b"):
+    return prompt(message, model=model, base_url="http://localhost:11434/v1", api_key="none")
+
+def prompt(message:str, model="gpt-oss:20b", base_url=SANDBOB_LLM_SERVER, api_key=SANDBOB_LLM_API_KEY):
     """A prompt helper function that sends a message to ollama and returns only the text response."""
     import openai
     
@@ -7,7 +14,7 @@ def prompt_ollama(message:str, model="gpt-oss:20b"):
         message = [{"role": "user", "content": message}]
         
     # setup connection to the LLM
-    client = openai.OpenAI(base_url = "http://localhost:11434/v1", api_key = "none")
+    client = openai.OpenAI(base_url=base_url, api_key=api_key)
     response = client.chat.completions.create(
         model=model,
         messages=message
@@ -21,8 +28,6 @@ def prompt_ollama(message:str, model="gpt-oss:20b"):
 
 
 def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b"):
-#def prompt_scadsai_llm(message:str, model="meta-llama/Llama-3.3-70B-Instruct"):
-#def prompt_scadsai_llm(message:str, model="deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"):
     """A prompt helper function that sends a message to ScaDS.AI LLM server at 
     ZIH TU Dresden and returns only the text response.
     """

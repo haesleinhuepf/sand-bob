@@ -5,6 +5,8 @@ from html import escape
 
 class Config:
     def __init__(self):
+        self.debug = False
+
         self.prompt_function_determine_dependencies = prompt_scadsai_llm
         self.prompt_function_generate_code = prompt_scadsai_llm
         self.prompt_function_fix_code = prompt_scadsai_llm
@@ -185,7 +187,6 @@ Now update the Jupyter notebook in MystNB format above and make it easier to rea
         return func_name, model
 
     def _repr_html_(self):
-        header_first_col_style = "background:#3874CC;color:white;padding:6px 10px;border:1px solid white;"
         rows = [
             ("Generate  code", self.prompt_function_generate_code),
             ("Fix code", self.prompt_function_fix_code),
@@ -201,7 +202,7 @@ Now update the Jupyter notebook in MystNB format above and make it easier to rea
             model_text = "" if model is None else str(model)
             table_rows.append(
                 "<tr>"
-                f"<td style='{header_first_col_style}'>{escape(task)}</td>"
+                f"<td>{escape(task)}</td>"
                 f"<td>{escape(function_name)}</td>"
                 f"<td>{escape(model_text)}</td>"
                 "</tr>"
@@ -212,9 +213,9 @@ Now update the Jupyter notebook in MystNB format above and make it easier to rea
             "<h5 style='margin:0 0 8px 0;'>LLM backend</h5>"
             "<table>"
             "<thead><tr>"
-            f"<th style='{header_first_col_style}'>Task</th>"
-            f"<th style='{header_first_col_style}'>Function</th>"
-            f"<th style='{header_first_col_style}'>Model</th>"
+            f"<th>Task</th>"
+            f"<th>Function</th>"
+            f"<th>Model</th>"
             "</tr></thead>"
             f"<tbody>{''.join(table_rows)}</tbody>"
             "</table>"
@@ -283,3 +284,18 @@ def config_ollama(model: str="qwen2.5-coder:3b"):
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
     config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
+
+
+def config_llms(model: str="gemma3:4b",
+    vision_model: str="gemma3:4b",
+    base_url: str="http://localhost:11434/v1",
+    api_key: str="none"):
+    from ._endpoints import prompt
+
+    config.prompt_function_determine_dependencies = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_generate_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_fix_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_generate_code_feedback = partial(prompt, model=vision_model, base_url=base_url, api_key=api_key)
+    config.prompt_function_summarize_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_notebook_conversion = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+
