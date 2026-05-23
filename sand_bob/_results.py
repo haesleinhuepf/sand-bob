@@ -51,6 +51,7 @@ class ExecutionResult:
         import pandas as pd
         from io import BytesIO
         import base64
+
         self._create_widget()
         display(self.widget)
         if self.save_notebook_output is not None:
@@ -289,8 +290,19 @@ class ExecutionResult:
 (function() {{
   const root = document.getElementById('{root_id}');
   if (!root) return;
-  const buttons = Array.from(root.querySelectorAll('.sb-tab-btn'));
-  const panels = Array.from(root.querySelectorAll('.sb-tab-panel'));
+    const buttonsBar = Array.from(root.children).find(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-buttons');
+    }});
+    const content = Array.from(root.children).find(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-content');
+    }});
+    if (!buttonsBar || !content) return;
+    const buttons = Array.from(buttonsBar.children).filter(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-btn');
+    }});
+    const panels = Array.from(content.children).filter(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-panel');
+    }});
   const activate = function(index) {{
     buttons.forEach(function(btn) {{
       btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
@@ -709,8 +721,23 @@ class ExecutionResultList:
 (function() {{
     const root = document.getElementById('{root_id}');
     if (!root) return;
-    const buttons = Array.from(root.querySelectorAll('.sb-tab-btn'));
-    const panels = Array.from(root.querySelectorAll('.sb-tab-panel'));
+    const topTabs = Array.from(root.children).find(function(child) {{
+        return child.classList && child.classList.contains('sb-tabs');
+    }});
+    if (!topTabs) return;
+    const buttonsBar = Array.from(topTabs.children).find(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-buttons');
+    }});
+    const content = Array.from(topTabs.children).find(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-content');
+    }});
+    if (!buttonsBar || !content) return;
+    const buttons = Array.from(buttonsBar.children).filter(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-btn');
+    }});
+    const panels = Array.from(content.children).filter(function(child) {{
+        return child.classList && child.classList.contains('sb-tab-panel');
+    }});
     const activate = function(index) {{
         buttons.forEach(function(btn) {{
             btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
