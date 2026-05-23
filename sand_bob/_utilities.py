@@ -578,3 +578,21 @@ def objects_identical(object1, object2):
     except (TypeError, ValueError):
         # If objects are not JSON serializable, fall back to direct comparison
         return object1 == object2
+    
+
+def remove_bracketed_markdown_fences(text):
+    """
+    Remove markdown fences that are in the form of ```{markdown} ... ``` from the text.
+    """
+    lines = []
+    flag = False
+    for line in text.split("\n"):
+        if line.startswith("```{markdown}"):
+            flag = True
+        elif line.startswith("```") and flag:
+            flag = False
+        else:
+            lines.append(line)
+
+    result = "\n".join(lines)
+    return result

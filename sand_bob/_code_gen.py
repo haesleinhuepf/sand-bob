@@ -155,9 +155,9 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
         Final execution result containing updated code, dependencies, and
         attempt metadata.
     """
-    from sand_bob import execute, execute_notebook
-    from sand_bob._utilities import is_notebook
-    from sand_bob._executor import ExecutionResult
+    from ._executor import execute, execute_notebook
+    from ._utilities import is_notebook
+    from ._results import ExecutionResult
 
     dependencies = dependencies.copy()
     former_result = None
@@ -600,7 +600,7 @@ def python_code_to_beautiful_notebook(source, original_task="", dependencies=[],
         Execution result of the transformed notebook.
     """
     from ._config import config
-    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json
+    from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json, remove_bracketed_markdown_fences
 
     dependencies_str = ", ".join(dependencies)
 
@@ -640,7 +640,7 @@ Original task:
     #print("prompt:", prompt)
 
     notebook_str = config.prompt_function_notebook_conversion(prompt)
-    #notebook_str = remove_outer_markdown(notebook_str)
+    notebook_str = remove_bracketed_markdown_fences(notebook_str)
     if "```markdown" in notebook_str:
         notebook_str = "```markdown".join(notebook_str.split("```markdown")[1:])
         notebook_str = "```".join(notebook_str.split("```")[:-1])
@@ -719,7 +719,7 @@ def generate_code(*args, **kwargs):
     ExecutionResult or ExecutionResultList
         Wrapped execution result.
     """
-    from ._executor import ExecutionResultList
+    from ._results import ExecutionResultList
     result = generate_and_optimize_code(*args, **kwargs)
     if isinstance(result, list):
         return ExecutionResultList(result)

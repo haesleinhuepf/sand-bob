@@ -283,3 +283,18 @@ def config_ollama(model: str="qwen2.5-coder:3b"):
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
     config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
+
+
+def config_llms(model: str="gemma3:4b",
+    vision_model: str="gemma3:4b",
+    base_url: str="http://localhost:11434/v1",
+    api_key: str="none"):
+    from ._endpoints import prompt
+
+    config.prompt_function_determine_dependencies = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_generate_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_fix_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_generate_code_feedback = partial(prompt, model=vision_model, base_url=base_url, api_key=api_key)
+    config.prompt_function_summarize_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_notebook_conversion = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+

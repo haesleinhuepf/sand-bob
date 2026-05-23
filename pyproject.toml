@@ -1,30 +1,41 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sand-bob"
 version = "0.1.0"
-description = "A Python library for executing code in Docker containers"
+description = "LLM-based code generation and docker-sandboxed execution in a loop in parallel"
 readme = "README.md"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Robert Haase", email = "robert.haase@uni-leipzig.de"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.8"
 dependencies = [
     "docker>=6.0.0",
+    "ipywidgets>=7.0.0",
+    "ipython>=7.0.0",
+    "jupytext>=1.0.0",
+    "jupyterlab>=3.0.0",
+    "matplotlib>=3.0.0",
+    "numpy>=1.0.0",
+    "openai>=1.0.0",
+    "pandas>=1.0.0",
+    "Pillow>=9.0.0",
+    "scikit-image>=0.19.0",
+    "wordcloud>=1.9.0",
 ]
 
 [project.optional-dependencies]
@@ -33,12 +44,16 @@ dev = [
     "pytest-cov>=4.0.0",
     "black>=22.0.0",
     "flake8>=5.0.0",
+    "requests>=2.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/sand-bob"
-Repository = "https://github.com/yourusername/sand-bob"
-Issues = "https://github.com/yourusername/sand-bob/issues"
+Homepage = "https://github.com/haesleinhuepf/sand-bob"
+Repository = "https://github.com/haesleinhuepf/sand-bob"
+Issues = "https://github.com/haesleinhuepf/sand-bob/issues"
+
+[tool.setuptools.packages.find]
+include = ["sand_bob*"]
 
 [tool.black]
 line-length = 88
