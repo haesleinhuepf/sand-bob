@@ -48,7 +48,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/haesleinhuepf/sand-bob"
+Homepage = "https://haesleinhuepf.github.io/sand-bob/"
 Repository = "https://github.com/haesleinhuepf/sand-bob"
 Issues = "https://github.com/haesleinhuepf/sand-bob/issues"
 

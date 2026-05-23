@@ -1,0 +1,15 @@
+format: jb-book
+root: index
+parts:
+  - caption: "Basics"
+    chapters:
+      - file: installation
+      - file: examples/alice
+      - file: examples/basic_usage
+  - caption: "Advanced"
+    chapters:
+      - file: examples/benchmarking_llms
+      - file: examples/consistency_visualization
+      - file: examples/datagen_significance_test
+      - file: examples/gpu-support
+      - file: examples/plot_sigmoid

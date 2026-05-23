@@ -3,13 +3,13 @@ name: jupyter-book
 on:
   pull_request:
     paths:
-      - "examples/**"
+      - "docs/**"
       - ".github/workflows/jupyter-book.yml"
   push:
     branches:
       - main
     paths:
-      - "examples/**"
+      - "docs/**"
       - ".github/workflows/jupyter-book.yml"
 
 permissions:
@@ -35,13 +35,13 @@ jobs:
           pip install "jupyter-book<2"
 
       - name: Build Jupyter Book
-        run: jb build examples
+        run: jupyter-book build docs
 
       - name: Upload HTML artifact
         uses: actions/upload-artifact@v4
         with:
           name: jupyter-book-html
-          path: examples/_build/html
+          path: docs/_build/html
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -61,13 +61,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-          pip install "jupyter-book<1"
+          pip install "jupyter-book<2"
 
       - name: Build Jupyter Book
-        run: jb build examples
+        run: jupyter-book build docs
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: examples/_build/html
+          publish_dir: docs/_build/html
