@@ -51,7 +51,6 @@ class ExecutionResult:
         import pandas as pd
         from io import BytesIO
         import base64
-
         self._create_widget()
         display(self.widget)
         if self.save_notebook_output is not None:
@@ -77,104 +76,189 @@ class ExecutionResult:
 
         return parsed_output
 
-    #def __post_init__(self):
-    #    """Initialize the widget interface after dataclass initialization."""
-    #    self._create_widget()
 
     def _create_widget(self, include_chain_selector: bool = True):
-        """Create the main interface using HTML tabs and optional history selector."""
-        # Keep ipywidgets only for the save notebook section.
-        self.save_notebook_output = None
-        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
-            self.save_notebook_output = widgets.Output()
-            self._populate_save_notebook()
+            """Create the main interface using HTML tabs and optional history selector."""
+            # Keep ipywidgets only for the save notebook section.
+            self.save_notebook_output = None
+            if self.files and '/display_output/notebook_executed.ipynb' in self.files:
+                    self.save_notebook_output = widgets.Output()
+                    self._populate_save_notebook()
 
-        chain: List[ExecutionResult] = [self]
-        if include_chain_selector:
-            chain = []
-            cursor = self
-            seen = set()
-            while cursor is not None:
-                cursor_id = id(cursor)
-                if cursor_id in seen:
-                    break
-                seen.add(cursor_id)
-                chain.append(cursor)
-                cursor = cursor.former_result
-            chain = list(reversed(chain))
+            chain: List[ExecutionResult] = [self]
+            if include_chain_selector:
+                    chain = []
+                    cursor = self
+                    seen = set()
+                    while cursor is not None:
+                            cursor_id = id(cursor)
+                            if cursor_id in seen:
+                                    break
+                            seen.add(cursor_id)
+                            chain.append(cursor)
+                            cursor = cursor.former_result
+                    chain = list(reversed(chain))
 
-        root_id = f"sb-res-{uuid.uuid4().hex}"
-        sections_html = []
-        options_html = []
+            root_id = f"sb-res-{uuid.uuid4().hex}"
+            sections_html = []
+            options_html = []
 
-        for i, result in enumerate(chain):
-            label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
-            options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
-            section_style = "" if i == len(chain) - 1 else "display:none;"
-            sections_html.append(
-                f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
-                f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
-            )
+            for i, result in enumerate(chain):
+                    label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
+                    options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
+                    section_style = "" if i == len(chain) - 1 else "display:none;"
+                    sections_html.append(
+                            f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
+                            f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
+                    )
 
-        history_selector_html = ""
-        if include_chain_selector and len(chain) > 1:
-            history_selector_html = (
-                f"<div class='sb-history-bar'>"
-                f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
-                f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
-                f"</div>"
-            )
+            history_selector_html = ""
+            if include_chain_selector and len(chain) > 1:
+                    history_selector_html = (
+                            f"<div class='sb-history-bar'>"
+                            f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
+                            f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
+                            f"</div>"
+                    )
 
-        script_html = ""
-        if include_chain_selector and len(chain) > 1:
-            default_index = len(chain) - 1
-            script_html = f"""
+            script_html = ""
+            if include_chain_selector and len(chain) > 1:
+                    default_index = len(chain) - 1
+                    script_html = f"""
 <script>
 (function() {{
-  const root = document.getElementById('{root_id}');
-  if (!root) return;
-  const select = root.querySelector('#{root_id}-history');
-  const panels = Array.from(root.querySelectorAll('.sb-history-panel'));
-  if (!select) return;
-  select.value = '{default_index}';
-  const show = function(index) {{
-    panels.forEach(function(panel) {{
-      panel.style.display = panel.dataset.index === String(index) ? '' : 'none';
+    const root = document.getElementById('{root_id}');
+    if (!root) return;
+    const select = root.querySelector('#{root_id}-history');
+    const panels = Array.from(root.querySelectorAll('.sb-history-panel'));
+    if (!select) return;
+    select.value = '{default_index}';
+    const show = function(index) {{
+        panels.forEach(function(panel) {{
+            panel.style.display = panel.dataset.index === String(index) ? '' : 'none';
+        }});
+    }};
+    select.addEventListener('change', function() {{
+        show(select.value);
     }});
-  }};
-  select.addEventListener('change', function() {{
     show(select.value);
-  }});
-  show(select.value);
 }})();
 </script>
 """
 
-        html_content = f"""
+            html_content = f"""
 <div id='{root_id}' class='sb-result-root'>
-  {self._tabs_css()}
-  {history_selector_html}
-  {''.join(sections_html)}
+    {ExecutionResult._tabs_css()}
+    {history_selector_html}
+    {''.join(sections_html)}
 </div>
 {script_html}
 """
-        self.widget = HTML(html_content)
+            self.widget = HTML(html_content)
 
-    def _tabs_css(self) -> str:
+    @staticmethod
+    def _tabs_css() -> str:
         return """
 <style>
-.sb-result-root { margin-top: 8px; }
-.sb-history-bar { margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-.sb-history-label { font-weight: 600; font-size: 13px; }
-.sb-history-select { padding: 3px 8px; border: 1px solid #c5c5c5; border-radius: 4px; background: white; }
-.sb-tabs { border: 1px solid #d8d8d8; border-radius: 4px; background: white; }
-.sb-tab-buttons { display: flex; align-items: flex-end; gap: 0; border-bottom: 1px solid #d8d8d8; background: #f7f7f7; overflow-x: auto; }
-.sb-tab-btn { border: 0; border-right: 1px solid #dddddd; background: #f2f2f2; color: #333; padding: 7px 12px; cursor: pointer; font-size: 13px; white-space: nowrap; }
-.sb-tab-btn:hover { background: #ebebeb; }
-.sb-tab-btn.active { background: white; font-weight: 600; border-bottom: 2px solid white; }
-.sb-tab-content { padding: 12px; }
-.sb-tab-panel { display: none; }
-.sb-tab-panel.active { display: block; }
+.sb-result-root {
+    --sb-border: #cfcfcf;
+    --sb-tab-bg: #f2f2f2;
+    --sb-tab-hover-bg: #ebebeb;
+    --sb-active-bg: #ffffff;
+    --sb-content-bg: #ffffff;
+    --sb-text: #2f2f2f;
+    --sb-shadow: rgba(0, 0, 0, 0.04);
+    margin-top: 8px;
+    color: var(--sb-text);
+}
+
+.sb-history-bar {
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sb-history-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.sb-history-select {
+    min-width: 210px;
+    padding: 4px 8px;
+    border: 1px solid var(--sb-border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--sb-text);
+}
+
+.sb-history-panel {
+    margin: 0;
+}
+
+.sb-tabs {
+    border: 1px solid var(--sb-border);
+    border-radius: 4px;
+    background: var(--sb-content-bg);
+    box-shadow: inset 0 1px 0 var(--sb-shadow);
+}
+
+.sb-tab-buttons {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    border-bottom: 1px solid var(--sb-border);
+    background: linear-gradient(to bottom, #f8f8f8 0%, #f1f1f1 100%);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.sb-tab-btn {
+    appearance: none;
+    border: 0;
+    border-right: 1px solid #dddddd;
+    border-bottom: 1px solid var(--sb-border);
+    margin: 0;
+    background: var(--sb-tab-bg);
+    color: var(--sb-text);
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.25;
+    white-space: nowrap;
+    position: relative;
+}
+
+.sb-tab-btn:hover {
+    background: var(--sb-tab-hover-bg);
+}
+
+.sb-tab-btn.active {
+    background: var(--sb-active-bg);
+    font-weight: 600;
+    border-bottom: 1px solid var(--sb-active-bg);
+    box-shadow: inset 0 2px 0 #e6e6e6;
+    z-index: 1;
+}
+
+.sb-tab-content {
+    padding: 12px;
+    background: var(--sb-content-bg);
+}
+
+.sb-tab-panel {
+    display: none;
+}
+
+.sb-tab-panel.active {
+    display: block;
+}
+
+.sb-tab-content pre {
+    margin-top: 6px;
+    border: 1px solid #ececec;
+}
 </style>
 """
 
@@ -578,44 +662,44 @@ class ExecutionResultList:
         self._create_tabbed_interface()
     
     def _create_tabbed_interface(self):
-                """Create an HTML tab interface (ipywidgets-free)."""
-                tab_titles = ["Overview"]
-                tab_panels = [self._populate_overview()]
+        """Create an HTML tab interface (ipywidgets-free)."""
+        tab_titles = ["Overview"]
+        tab_panels = [self._populate_overview()]
 
-                for i, result in enumerate(self.results):
-                        if result is None:
-                                continue
+        for i, result in enumerate(self.results):
+            if result is None:
+                continue
 
-                        temp = result.render_inline if hasattr(result, 'render_inline') else True
-                        result.render_inline = False
-                        result._create_widget(include_chain_selector=False)
+            temp = result.render_inline if hasattr(result, 'render_inline') else True
+            result.render_inline = False
+            result._create_widget(include_chain_selector=False)
 
-                        if hasattr(result, 'widget'):
-                                tab_content = result.widget.data if hasattr(result.widget, 'data') else str(result.widget)
-                                tab_panels.append(tab_content)
-                                if i < len(self.tab_names):
-                                        tab_titles.append(self.tab_names[i])
-                                else:
-                                        tab_titles.append(f"Result {i + 1}")
+            if hasattr(result, 'widget'):
+                tab_content = result.widget.data if hasattr(result.widget, 'data') else str(result.widget)
+                tab_panels.append(tab_content)
+                if i < len(self.tab_names):
+                    tab_titles.append(self.tab_names[i])
+                else:
+                    tab_titles.append(f"Result {i + 1}")
 
-                        result.render_inline = temp
+            result.render_inline = temp
 
-                root_id = f"sb-list-{uuid.uuid4().hex}"
-                buttons = []
-                panels = []
-                for i, title in enumerate(tab_titles):
-                        active = " active" if i == 0 else ""
-                        buttons.append(
-                                f"<button class='sb-tab-btn{active}' type='button' data-tab-index='{i}'>{html.escape(str(title))}</button>"
-                        )
-                        panel_class = "sb-tab-panel active" if i == 0 else "sb-tab-panel"
-                        panel_html = tab_panels[i] if i < len(tab_panels) else ""
-                        panels.append(f"<div class='{panel_class}' data-panel-index='{i}'>{panel_html}</div>")
+        root_id = f"sb-list-{uuid.uuid4().hex}"
+        buttons = []
+        panels = []
+        for i, title in enumerate(tab_titles):
+            active = " active" if i == 0 else ""
+            buttons.append(
+                f"<button class='sb-tab-btn{active}' type='button' data-tab-index='{i}'>{html.escape(str(title))}</button>"
+            )
+            panel_class = "sb-tab-panel active" if i == 0 else "sb-tab-panel"
+            panel_html = tab_panels[i] if i < len(tab_panels) else ""
+            panels.append(f"<div class='{panel_class}' data-panel-index='{i}'>{panel_html}</div>")
 
-                self.tab_widget_html = HTML(
-                        f"""
+        self.tab_widget_html = HTML(
+            f"""
 <div id='{root_id}' class='sb-result-root'>
-    {ExecutionResult._tabs_css(self)}
+        {ExecutionResult._tabs_css()}
     <div class='sb-tabs'>
         <div class='sb-tab-buttons'>{''.join(buttons)}</div>
         <div class='sb-tab-content'>{''.join(panels)}</div>
@@ -644,7 +728,7 @@ class ExecutionResultList:
 }})();
 </script>
 """
-                )
+    )
 
     def _get_final_results(self) -> List[Any]:
         """Collect non-empty final results from the list."""
