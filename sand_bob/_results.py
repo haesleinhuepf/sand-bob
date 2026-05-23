@@ -264,14 +264,18 @@ class ExecutionResult:
 """
 
     def _build_tabs_html(self, root_id: str) -> str:
+        from ._config import config
         tabs = [
             ("Output", self._output_html()),
             ("Code", self._code_html()),
-            ("Prompt", self._prompt_html()),
-            ("Details", self._details_html()),
-            ("StdOut", self._stdout_html()),
-            ("StdErr", self._stderr_html()),
         ]
+        if config.debug:
+            tabs += [
+                ("Prompt", self._prompt_html()),
+                ("Details", self._details_html()),
+                ("StdOut", self._stdout_html()),
+                ("StdErr", self._stderr_html()),
+            ]
 
         buttons = []
         panels = []

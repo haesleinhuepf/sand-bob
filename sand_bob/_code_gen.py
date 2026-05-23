@@ -602,7 +602,7 @@ def python_code_to_beautiful_notebook(source, original_task="", dependencies=[],
     from ._config import config
     from ._utilities import erase_outputs_of_code_cells, remove_outer_markdown, fix_json, remove_bracketed_markdown_fences
 
-    dependencies_str = ", ".join(dependencies)
+    dependencies_str = "<small><pre>pip install " + " ".join(dependencies) + "</pre></small>"
 
     original_task_prompt = ""
     if original_task:
@@ -658,7 +658,7 @@ jupytext:
     format_version: '0.13'
     jupytext_version: 1.13.8
 ---
-""" + notebook_str.split("\n---\n")[-1] 
+""" + dependencies_str + notebook_str.split("\n---\n")[-1] 
 
     #print("result:", notebook_str)
 
