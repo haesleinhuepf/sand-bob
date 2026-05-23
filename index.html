@@ -467,14 +467,14 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">n_feedback_iterations</span></code>: After potential code-fixes, the code and corresponding result visualizations will be provided to a VLM to check it. This VLM will potentially come up with code improvements. Improved code will then be fed back to code-fixing if necessary. If the code remains identical, e.g. because feedback suggested so, it will stop early. Hence, if you specify <code class="docutils literal notranslate"><span class="pre">n_codefix_attempts=2</span></code> and <code class="docutils literal notranslate"><span class="pre">n_feedback_iterations=2</span></code>, code will be executed 1 time in the best case and 9 times in the worst case.</p></li>
 </ul>
 <p>This figure explains how <code class="docutils literal notranslate"><span class="pre">n_codefix_attempts</span></code> and <code class="docutils literal notranslate"><span class="pre">n_feedback_iterations</span></code> work together:</p>
-<img src="flowchart.png" height="400"/>
+<p><img alt="" src="_images/flowchart.png" /></p>
 </section>
 <section id="result-history">
 <h3>Result history<a class="headerlink" href="#result-history" title="Link to this heading">#</a></h3>
 <p>During the process of code improvement, error messages and results are stored. You can visualize them to differentiate cases, where finding a solution was straightforward:</p>
-<p><img alt="" src="docs/result_tracing_consistent.png" /></p>
+<p><img alt="" src="_images/result_tracing_consistent.png" /></p>
 <p>… and cases where the system struggled to solve a task:</p>
-<p><img alt="" src="docs/result_tracing_inconsistent.png" /></p>
+<p><img alt="" src="_images/result_tracing_inconsistent.png" /></p>
 <p>Note that even if multiple code generations / executions return the same result, does not necessarily mean the result is correct.</p>
 </section>
 </section>
