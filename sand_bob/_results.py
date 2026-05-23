@@ -217,6 +217,7 @@ class ExecutionResult:
     border-bottom: 1px solid var(--sb-border);
     background: transparent;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: thin;
 }
 
@@ -227,7 +228,7 @@ class ExecutionResult:
     margin: 0;
     background: var(--sb-tab-bg);
     color: var(--sb-muted-text);
-    padding: 7px 12px;
+    padding: 5px 12px;
     cursor: pointer;
     font-size: 12px;
     line-height: 1.25;
