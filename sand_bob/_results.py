@@ -61,6 +61,125 @@ class ExecutionResult:
 
 
         return self._html_output()
+
+    def _repr_markdown_(self):
+        """Return a GitHub-friendly Markdown representation using headlines."""
+        sections = [
+            ("Output", self._output_markdown()),
+            ("Code", self._code_markdown()),
+            ("Prompt", self._prompt_markdown()),
+            ("Details", self._details_markdown()),
+            ("StdOut", self._stdout_markdown()),
+            ("StdErr", self._stderr_markdown()),
+        ]
+
+        rendered_sections = []
+        for title, content in sections:
+            rendered_sections.append(f"### {title}\n\n{content}")
+
+        return "\n\n".join(rendered_sections)
+
+    def _output_markdown(self) -> str:
+        if not self.outputs:
+            return "_No output_"
+
+        lines = []
+        for output in self.outputs:
+            output_type = output.get("type")
+            data = output.get("data")
+            if output_type == "image/png":
+                lines.append("_Image output omitted in markdown fallback._")
+            else:
+                lines.append(f"```\n{str(data)}\n```")
+
+        return "\n\n".join(lines)
+
+    def _stdout_markdown(self) -> str:
+        if not self.stdout:
+            return "_No output_"
+        return f"```\n{self.stdout}\n```"
+
+    def _stderr_markdown(self) -> str:
+        if not self.stderr:
+            return "_No errors_"
+        return f"```\n{self.stderr}\n```"
+
+    def _code_markdown(self) -> str:
+        if not self.code:
+            return "_No code available_"
+
+        from ._utilities import is_notebook
+        if is_notebook(self.code):
+            notebook_data = json.loads(self.code)
+            source_code = ""
+            for i, cell in enumerate(notebook_data.get("cells", [])):
+                if cell.get("cell_type") == "code":
+                    cell_source = cell.get("source", "")
+                    if isinstance(cell_source, list):
+                        cell_source = "".join(cell_source)
+                    source_code += f"# Cell {i+1}\\n{cell_source}\\n\\n"
+            if source_code.strip():
+                return f"```python\n{source_code.rstrip()}\n```"
+            return "_No code cells available_"
+
+        return f"```python\n{self.code}\n```"
+
+    def _prompt_markdown(self) -> str:
+        if not self.prompt:
+            return "_No prompt available_"
+        return f"```\n{self.prompt}\n```"
+
+    def _details_markdown(self) -> str:
+        items = []
+
+        if self.reason is not None:
+            items.append(f"- **Execution reason:** {self.reason}")
+        if self.final_result is not None:
+            items.append(f"- **Final result:** {self.final_result}")
+        if self.summary is not None:
+            items.append(f"- **Summary:** {self.summary}")
+
+        items.append(f"- **Exit Code:** {self.exit_code}")
+        if self.build_time is not None:
+            items.append(f"- **Build Time:** {self.build_time:.2f}s")
+        if self.run_time is not None:
+            items.append(f"- **Run Time:** {self.run_time:.2f}s")
+        items.append(f"- **Execution Time:** {self.execution_time:.2f}s")
+
+        if self.total_time is not None:
+            items.append(f"- **Total Time:** {self.total_time:.2f}s")
+        if self.container_id:
+            items.append(f"- **Container ID:** {self.container_id}")
+        if self.dependencies:
+            items.append(f"- **Dependencies:** {', '.join([str(dep) for dep in self.dependencies])}")
+
+        if self.files:
+            items.append("- **Files:**")
+            for file_name in self.files.keys():
+                items.append(f"  - {file_name}")
+
+        if self.n_codefix_attempts is not None:
+            items.append(f"- **Number of attempts:** {self.n_codefix_attempts}")
+
+        if self.traceback:
+            items.append("- **Traceback:**")
+            items.append(f"```\n{self.traceback}\n```")
+
+        if self.feedback:
+            items.append("- **Feedback:**")
+            items.append(f"```\n{self.feedback}\n```")
+
+        if self.build_log:
+            build_log_text = "\n".join(self.build_log)
+            if len(build_log_text) > 10000:
+                lines = self.build_log
+                first_lines = "\n".join(lines[:50])
+                last_lines = "\n".join(lines[-50:])
+                build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
+            items.append("- **Build Log:**")
+            items.append(f"```\n{build_log_text}\n```")
+
+        return "\n".join(items) if items else "_No details available_"
     
     def _html_output(self):
         
@@ -1126,6 +1245,18 @@ class ExecutionResultList:
         """Return HTML representation for Jupyter display."""
         self.display()
         return ""
+
+    def _repr_markdown_(self):
+        """Return a GitHub-friendly Markdown representation using headlines."""
+        lines = ["## Results"]
+        for i, result in enumerate(self.results):
+            lines.append(f"### Result {i + 1}")
+            if result is None:
+                lines.append("_No result available_")
+                continue
+            lines.append(result._repr_markdown_())
+
+        return "\n\n".join(lines)
     
     def __len__(self):
         """Return the number of results."""
