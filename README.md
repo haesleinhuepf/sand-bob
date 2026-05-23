@@ -174,8 +174,9 @@ Note that even if multiple code generations / executions return the same result,
 
 * The docker containers do not have acceess to the internet while executing code. This is an intentional security constraint and also meant to optimize execution time. If code within containers downloads the same AI model over and over this is highly inefficient and will waste resources. If you seek to download files or AI models to use them within the code-execution loop, download these models locally and give the container access to the folder where the files are stored.
 * So far Sand-Bob was only tested on Windows 11 with Docker Desktop and WSL2 installed.
+* While testing Sand-Bob on different system hardware it turned out that it starting and running containers is about an order of magnitude slower on an AMD Ryzen 9 7940HS  compared to a Intel i9-12900H (both from 2024/2025). It remains unclear if this is a hardware limitation of if it couldd be fixed by a smart configuration.
 
-## Similar Projects
+## Similar Open Source Projects
 
 * [SandboxAI](https://github.com/substratusai/sandboxai)
 * [llm-sandbox](https://github.com/vndee/llm-sandbox)
