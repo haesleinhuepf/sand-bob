@@ -11,7 +11,7 @@ except (ImportError, NameError):
 
 from ._config import config, config_openai, config_kisski, config_ollama, config_scadsai_llm, config_kiara, config_llms
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["ExecutionResult", "execute", "config", "generate_code", "config_openai", "config_kisski", "config_ollama", "config_scadsai_llm", "config_kiara", "config_llms"] 
 
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
