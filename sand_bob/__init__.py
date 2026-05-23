@@ -1,9 +1,9 @@
-from ._executor import ExecutionResult, execute, execute_notebook
+from ._executor import ExecutionResult, execute
 from ._code_gen import generate_code
 
 # Conditionally import IPython magic functions only if IPython is available
 try:
-    from ._bob import alice, initialize
+    from ._alice import alice, initialize
 except (ImportError, NameError):
     # IPython not available or not in IPython context
     alice = None

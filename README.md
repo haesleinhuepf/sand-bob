@@ -32,9 +32,7 @@ SANDBOB_LLM_SERVER = https://url/v1
 SANDBOB_LLM_API_KEY = sk_...
 ```
 
-**Note:** It is recommended to use locally hosted language models or institutional infrastructure for this. As many prompts are sent to the LLM-server while optimizing code [potentially in parallle], costs may be high when using paid LLM-servers.
-
-
+**Note:** It is recommended to use locally hosted language models (e.g. using [ollama](https://ollama.com)) or souvereign institutional infrastructure for this. As many prompts are sent to the LLM-server while optimizing code [potentially in parallel], costs may be high when using paid LLM-servers.
 
 ## Basic programmatic usage
 

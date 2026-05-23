@@ -31,8 +31,8 @@ def alice(line, cell=None):
 
 def initialize(input_host_path: str=None, 
                dependencies: list=["scikit-image", "numpy", "pandas", "matplotlib", "seaborn", "tqdm", "scipy"], 
-               n_codefix_attempts: int = 1,
-               n_feedback_iterations: int = 1,
+               n_codefix_attempts: int = 3,
+               n_feedback_iterations: int = 0,
                n_parallel: int = 1,
                n_iterative: int = 1,
                vary_algorithm: bool = False,
