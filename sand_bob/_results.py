@@ -381,18 +381,103 @@ class ExecutionResult:
     def _stdout_html(self) -> str:
         if self.stdout:
             return (
-                "<div><h4>Standard Output</h4>"
+                "<div>"
                 f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto;'>{html.escape(self.stdout)}</pre></div>"
             )
-        return "<div><h4>Standard Output</h4><p><em>No output</em></p></div>"
+        return "<div><em>No output</em></p></div>"
 
     def _stderr_html(self) -> str:
         if self.stderr:
             return (
-                "<div><h4>Standard Error</h4>"
+                "<div>"
                 f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; color: red;'>{html.escape(self.stderr)}</pre></div>"
             )
-        return "<div><h4>Standard Error</h4><p><em>No errors</em></p></div>"
+        return "<div><em>No errors</em></div>"
+
+    def _python_code_to_html(self, source_code: str) -> str:
+        """Convert Python source code to a syntax-highlighted HTML pre block."""
+        import builtins
+        import io
+        import keyword
+        import tokenize
+
+        if not source_code:
+            return (
+                "<pre style='background: white; padding: 10px; border-radius: 5px; "
+                "overflow-x: auto; font-family: monospace;'></pre>"
+            )
+
+        token_styles = {
+            "keyword": "color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;",
+            "string": "color: var(--jp-mirror-editor-string-color, #BA2121);",
+            "comment": "color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;",
+            "number": "color: var(--jp-mirror-editor-number-color, #080);",
+            "operator": "color: var(--jp-mirror-editor-operator-color, #AA22FF);",
+            "builtin": "color: var(--jp-mirror-editor-builtin-color, #0000FF);",
+        }
+
+        builtin_names = set(dir(builtins))
+        lines = source_code.splitlines(keepends=True)
+        offsets = [0]
+        for line in lines:
+            offsets.append(offsets[-1] + len(line))
+
+        def _index(line_no: int, col_no: int) -> int:
+            # Tokenizer line numbers are 1-based.
+            return offsets[line_no - 1] + col_no
+
+        highlighted_parts = []
+        last_index = 0
+
+        try:
+            tokens = tokenize.generate_tokens(io.StringIO(source_code).readline)
+            for token in tokens:
+                if token.type == tokenize.ENDMARKER:
+                    break
+
+                start_idx = _index(token.start[0], token.start[1])
+                end_idx = _index(token.end[0], token.end[1])
+
+                if start_idx > last_index:
+                    highlighted_parts.append(html.escape(source_code[last_index:start_idx]))
+
+                token_text = source_code[start_idx:end_idx]
+                style = None
+
+                if token.type == tokenize.NAME:
+                    if keyword.iskeyword(token.string):
+                        style = token_styles["keyword"]
+                    elif token.string in builtin_names:
+                        style = token_styles["builtin"]
+                elif token.type == tokenize.STRING:
+                    style = token_styles["string"]
+                elif token.type == tokenize.COMMENT:
+                    style = token_styles["comment"]
+                elif token.type == tokenize.NUMBER:
+                    style = token_styles["number"]
+                elif token.type == tokenize.OP:
+                    style = token_styles["operator"]
+
+                escaped = html.escape(token_text)
+                if style:
+                    highlighted_parts.append(f"<span style='{style}'>{escaped}</span>")
+                else:
+                    highlighted_parts.append(escaped)
+
+                last_index = end_idx
+
+            if last_index < len(source_code):
+                highlighted_parts.append(html.escape(source_code[last_index:]))
+
+        except (tokenize.TokenError, IndentationError):
+            highlighted_parts = [html.escape(source_code)]
+
+        highlighted_code = "".join(highlighted_parts)
+        return (
+            "<pre style='background: white; "
+            "overflow-x: auto; font-family: monospace;'>"
+            f"{highlighted_code}</pre>"
+        )
 
     def _code_html(self) -> str:
         if not self.code:
@@ -409,19 +494,19 @@ class ExecutionResult:
                         cell_source = "".join(cell_source)
                     source_code += f"# Cell {i+1}\\n{cell_source}\\n\\n"
             return (
-                "<div><h4>Executed Code (from notebook)</h4>"
-                f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(source_code)}</pre></div>"
+                "<div>"
+                f"{self._python_code_to_html(source_code)}</div>"
             )
 
         return (
-            "<div><h4>Executed Code</h4>"
-            f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(self.code)}</pre></div>"
+            "<div>"
+            f"{self._python_code_to_html(self.code)}</div>"
         )
 
     def _prompt_html(self) -> str:
         if self.prompt:
             return (
-                "<div><h4>Prompt</h4>"
+                "<div>"
                 f"<pre style='background: white; padding: 10px; border-radius: 5px; overflow-x: auto; font-family: monospace;'>{html.escape(self.prompt)}</pre></div>"
             )
         return "<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"
