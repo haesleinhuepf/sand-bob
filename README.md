@@ -2,6 +2,8 @@
 
 LLM-based code generation and docker-sandboxed execution in a loop in parallel
 
+![](docs/alice-teaser-small.gif)
+
 Sand-Bob is a framework for studying language models and prompt-engineering performance in the context of single-script code generation for data analysis. Sand-Bob allows you to
 * [generate code using LLMs and execute it transparently in docker containers](examples/basic_usage.ipynb), including [gpu-support](examples/gpu-support.ipynb)
 * [simplistic Jupyter notebook generation from within notebooks using the `%%alice` magic command](examples/alice.ipynb)
@@ -11,9 +13,6 @@ Sand-Bob is a framework for studying language models and prompt-engineering perf
 * do prompt engineering including measuring functional correctness of generated code
 * [benchmark language models for code generation and determine functional correctness](examples/benchmarking_llms.ipynb)
 * Using the `%%alice`magic command, you can use Sand-Bob for [data analysis by prompting for code you do not review before executing it](examples/alice.ipynb).
-
-![](docs/counting_blobs.gif)
-
 
 Note: This is research software under active development. The API may break with every new release.
 
