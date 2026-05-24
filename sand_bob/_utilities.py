@@ -475,6 +475,7 @@ def find_most_common_indices(input_list):
     return sorted(most_common_indices)
 
 
+from io import BytesIO
 import json
 import re
 import string
@@ -596,3 +597,23 @@ def remove_bracketed_markdown_fences(text):
 
     result = "\n".join(lines)
     return result
+
+def plt_to_html_image(fig) -> str:
+    import base64
+    import matplotlib.pyplot as plt
+    import io
+
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", bbox_inches="tight")
+    plt.close(fig)
+
+    buffer.seek(0)
+    img_base64 = base64.b64encode(buffer.read()).decode("ascii")
+    return (
+        "<div style='margin:8px 0;'>"
+        f"<img src='data:image/png;base64,{img_base64}' "
+        "style='max-width:100%;height:auto;'/>"
+        "</div>"
+    )
+
+

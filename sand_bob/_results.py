@@ -163,7 +163,7 @@ class ExecutionResult:
 <style>
 .sb-result-root {
     --sb-border: #c8c8c8;
-    --sb-tab-bg: #e4e4e4;
+    --sb-tab-bg: #f1f1f1;
     --sb-tab-hover-bg: #dadada;
     --sb-active-bg: #ffffff;
     --sb-content-bg: #ffffff;
@@ -204,7 +204,7 @@ class ExecutionResult:
 .sb-tabs {
     border: none;
     border-radius: 0;
-    background: var(--sb-content-bg);
+    background: transparent;
     box-shadow: none;
     overflow: hidden;
 }
@@ -226,7 +226,7 @@ class ExecutionResult:
     border: 1px solid var(--sb-border);
     border-bottom: none;
     margin: 0;
-    background: var(--sb-tab-bg);
+    background: transparent;
     color: var(--sb-muted-text);
     padding: 5px 12px;
     cursor: pointer;
@@ -239,12 +239,12 @@ class ExecutionResult:
 }
 
 .sb-tab-btn:hover {
-    background: var(--sb-tab-hover-bg);
+    background: transparent;
     color: var(--sb-text);
 }
 
 .sb-tab-btn.active {
-    background: var(--sb-active-bg);
+    background: transparent;
     color: var(--sb-text);
     font-weight: 500;
     border-color: var(--sb-border);
@@ -256,7 +256,7 @@ class ExecutionResult:
 
 .sb-tab-content {
     padding: 14px;
-    background: var(--sb-content-bg);
+    background: transparent;
     border-left: 1px solid var(--sb-border);
     border-right: 1px solid var(--sb-border);
     border-bottom: 1px solid var(--sb-border);
@@ -283,11 +283,11 @@ class ExecutionResult:
         tabs = [
             ("Output", self._output_html()),
             ("Code", self._code_html()),
+            ("Details", self._details_html()),
         ]
         if config.debug:
             tabs += [
                 ("Prompt", self._prompt_html()),
-                ("Details", self._details_html()),
                 ("StdOut", self._stdout_html()),
                 ("StdErr", self._stderr_html()),
             ]
@@ -512,16 +512,21 @@ class ExecutionResult:
         return "<div><h4>Prompt</h4><p><em>No prompt available</em></p></div>"
 
     def _details_html(self) -> str:
+        from ._config import config
         details_html = "<div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'>"
 
         if self.reason is not None:
             details_html += f"<li><strong>Execution reason:</strong> {html.escape(str(self.reason))}</li>"
+
+        if self.dependencies:
+            deps = ', '.join([html.escape(str(dep)) for dep in self.dependencies])
+            details_html += f"<li><strong>Dependencies:</strong> {deps}</li>"
+
         if self.final_result is not None:
             details_html += f"<li><strong>Final result:</strong> {html.escape(str(self.final_result))}</li>"
         if self.summary is not None:
             details_html += f"<li><strong>Summary:</strong> {html.escape(str(self.summary))}</li>"
 
-        details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
         if self.build_time is not None:
             details_html += f"<li><strong>Build Time:</strong> {self.build_time:.2f}s</li>"
         if self.run_time is not None:
@@ -531,42 +536,44 @@ class ExecutionResult:
         if self.total_time is not None:
             details_html += f"<li><strong>Total Time:</strong> {self.total_time:.2f}s</li>"
 
-        if self.container_id:
-            details_html += f"<li><strong>Container ID:</strong> {html.escape(str(self.container_id))}</li>"
-
-        if self.dependencies:
-            deps = ', '.join([html.escape(str(dep)) for dep in self.dependencies])
-            details_html += f"<li><strong>Dependencies:</strong> {deps}</li>"
-
         if self.files and len(self.files) > 0:
             details_html += "<li><strong>Files:</strong><ul>"
             for file, _content in self.files.items():
                 details_html += f"<li>{html.escape(str(file))}</li>"
             details_html += "</ul></li>"
 
-        if self.n_codefix_attempts is not None:
-            details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
-
         if self.traceback:
-            details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.traceback)}</pre></li>"
+            details_html += f"<li><strong>Traceback:</strong><pre style='padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.traceback)}</pre></li>"
 
         if self.feedback:
-            details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.feedback)}</pre></li>"
+            details_html += f"<li><strong>Feedback:</strong><pre style='padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.feedback)}</pre></li>"
 
-        if self.build_log:
-            build_log_text = '\n'.join(self.build_log)
-            if len(build_log_text) > 10000:
-                lines = self.build_log
-                first_lines = '\n'.join(lines[:50])
-                last_lines = '\n'.join(lines[-50:])
-                build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
-            details_html += (
-                "<li><strong>Build Log:</strong>"
-                f"<pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{html.escape(build_log_text)}</pre></li>"
-            )
+        if config.debug:
+            details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
+            if self.container_id:
+                details_html += f"<li><strong>Container ID:</strong> {html.escape(str(self.container_id))}</li>"
+
+            if self.n_codefix_attempts is not None:
+                details_html += f"<li><strong>Number of attempts:</strong> {self.n_codefix_attempts}</li>"
+
+            if self.build_log:
+                build_log_text = '\n'.join(self.build_log)
+                if len(build_log_text) > 10000:
+                    lines = self.build_log
+                    first_lines = '\n'.join(lines[:50])
+                    last_lines = '\n'.join(lines[-50:])
+                    build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
+                details_html += (
+                    "<li><strong>Build Log:</strong>"
+                    f"<pre style='padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{html.escape(build_log_text)}</pre></li>"
+                )
 
         details_html += "</ul></div>"
-        return details_html
+
+        from ._config import config
+        config_html = config._repr_html_()
+
+        return details_html + config_html
 
     def display_output(self):
         display(HTML("<pre>" + self._html_output() + "</pre>"))    
@@ -916,45 +923,28 @@ class ExecutionResultList:
         """Render a word cloud for text data with a fallback when wordcloud is unavailable."""
         import matplotlib.pyplot as plt
         from collections import Counter
+        from ._utilities import plt_to_html_image
 
         cleaned = " ".join(str(text).split())
         if not cleaned:
-            display(HTML("<p><em>No text available for word cloud.</em></p>"))
+            return "<p><em>No text available for word cloud.</em></p>"
             return
 
-        try:
-            from wordcloud import WordCloud
+        from wordcloud import WordCloud
 
-            wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.imshow(wc, interpolation="bilinear")
-            ax.axis("off")
-            ax.set_title(title)
-            display(fig)
-            plt.close(fig)
-            return
-        except Exception:
-            pass
-
-        # Fallback: simple frequency chart when wordcloud dependency is unavailable.
-        tokens = [t for t in cleaned.split(" ") if t]
-        token_counts = Counter(tokens).most_common(20)
-        if not token_counts:
-            display(HTML("<p><em>No tokens available for fallback frequency plot.</em></p>"))
-            return
-
-        labels = [item[0] for item in token_counts]
-        counts = [item[1] for item in token_counts]
+        wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.barh(labels[::-1], counts[::-1], color="#4C72B0")
-        ax.set_title(f"{title} (fallback frequency chart)")
-        ax.set_xlabel("Frequency")
-        display(fig)
-        plt.close(fig)
+        ax.imshow(wc, interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title(title)
+        
+        return plt_to_html_image(fig)
+    
 
-    def _render_numeric_histogram(self, values: List[Any]):
-        """Render a histogram for numeric final results."""
+    def _render_numeric_histogram(self, values: List[Any]) -> str:
+        """Render a histogram for numeric final results as an embeddable HTML image."""
         import matplotlib.pyplot as plt
+        from ._utilities import plt_to_html_image
 
         numeric_values = []
         for value in values:
@@ -962,8 +952,7 @@ class ExecutionResultList:
                 numeric_values.append(float(value))
 
         if not numeric_values:
-            display(HTML("<p><em>No numeric values available for histogram.</em></p>"))
-            return
+            return "<p><em>No numeric values available for histogram.</em></p>"
 
         fig, ax = plt.subplots(figsize=(9, 4))
         bins = min(20, max(5, len(numeric_values)))
@@ -971,14 +960,15 @@ class ExecutionResultList:
         ax.set_title("Distribution of final_result values")
         ax.set_xlabel("Value")
         ax.set_ylabel("Count")
-        display(fig)
-        plt.close(fig)
 
-    def _render_images_grid(self, values: List[Any]):
+        return plt_to_html_image(fig)
+
+    def _render_images_grid(self, values: List[Any]) -> str:
         """Render image-like final results in a grid."""
         import math
         import matplotlib.pyplot as plt
         import numpy as np
+        from ._utilities import plt_to_html_image
 
         images = []
         for value in values:
@@ -996,8 +986,7 @@ class ExecutionResultList:
                 images.append(array_value)
 
         if not images:
-            display(HTML("<p><em>No image values available for image grid.</em></p>"))
-            return
+            return "<p><em>No image values available for image grid.</em></p>"
 
         n_images = len(images)
         n_cols = min(4, n_images)
@@ -1015,10 +1004,10 @@ class ExecutionResultList:
 
         fig.suptitle("Image final_result overview", y=1.02)
         fig.tight_layout()
-        display(fig)
-        plt.close(fig)
 
-    def _render_dataframe_columns_wordcloud(self, values: List[Any]):
+        return plt_to_html_image(fig)
+
+    def _render_dataframe_columns_wordcloud(self, values: List[Any]) -> str:
         """Render a word cloud based on DataFrame column names."""
         columns = []
         for value in values:
@@ -1029,10 +1018,9 @@ class ExecutionResultList:
                     continue
 
         if not columns:
-            display(HTML("<p><em>No DataFrame columns found.</em></p>"))
-            return
+            return "<p><em>Empty DataFrame</em></p>"
 
-        self._render_word_cloud(" ".join(columns), "DataFrame column names")
+        return self._render_word_cloud(" ".join(columns), "DataFrame column names")
 
     def _trace_result_chain(self, result: Optional[ExecutionResult]) -> List[ExecutionResult]:
         """Return a result chain from oldest to newest following former_result links."""
@@ -1057,48 +1045,46 @@ class ExecutionResultList:
         """Format one simplified table cell for a final_result value."""
         import html
 
+        color = "#ffffff"
+
         if value is None:
-            return "<td style='background:#b0b0b0;color:#111;padding:6px 10px;border:1px solid #ffffff;'>None</td>"
+            bgcolor = "#b0b0b0"
+            color = "#111000"
 
-        if isinstance(value, bool):
-            return (
-                "<td style='background:#e2904a;color:white;padding:6px 10px;"
-                f"border:1px solid #ffffff;'>{value}</td>"
-            )
-        if isinstance(value, int) or isinstance(value, float):
-            return (
-                "<td style='background:#4a90e2;color:white;padding:6px 10px;"
-                f"border:1px solid #ffffff;'>{value}</td>"
-            )
+        result_type = self._classify_final_result(value)
 
-        if isinstance(value, str):
-            if "Error" in value or "Exception" in value:
-                return (
-                    "<td style='background:#e24a4a;color:white;padding:6px 10px;"
-                    f"border:1px solid #ffffff;'>{value}</td>"
-                )
+        output = str(value)
+
+        if "Error" in output or "Exception" in output:
+            bgcolor = "#e24a4a" 
+        elif result_type == "dataframe":
+            bgcolor = "#f5b33a"
+            output = f"DataFrame ({getattr(value, 'shape', '')})"
+        elif result_type == "image":
+            bgcolor = "#67cc23"
+            output = "Image"
+            if hasattr(value, "shape"):
+                output += f" ({value.shape})"
+        elif result_type == "numeric":
+            bgcolor = "#4a90e2"
+        elif result_type == "string":
+            bgcolor = "#8a4fff"
             preview = html.escape(value[:10])
             length = len(value)
-            if len(value) > 10:
-                return (
-                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
-                    f"border:1px solid #ffffff;'>{preview}... ({length})</td>"
-                )
-            else:
-                return (
-                    "<td style='background:#8a4fff;color:white;padding:6px 10px;"
-                    f"border:1px solid #ffffff;'>{preview}</td>"
-                )
+            output = f"{preview}... ({length})" if length > 10 else preview
+        else:
+            bgcolor = "#555555"
+            output = html.escape(str(type(value)))
 
-
-        type_text = html.escape(str(type(value)))
         return (
-            "<td style='background:#555555;color:white;padding:6px 10px;"
-            f"border:1px solid #ffffff;'>{type_text}</td>"
+            f"<td style='background:{bgcolor};color:{color};padding:6px 10px;"
+            f"border:1px solid #ffffff;'>{output}</td>"
         )
 
-
     def display_result_summary(self, headline: bool = False):
+        display(HTML(self._render_result_summary(headline=headline)))
+
+    def _render_result_summary(self, headline: bool = False):
         type_counts = {
             "numeric": 0,
             "string": 0,
@@ -1106,6 +1092,8 @@ class ExecutionResultList:
             "dataframe": 0,
             "other": 0,
         }
+
+        html = ""
 
         final_results = self._get_final_results()
 
@@ -1115,9 +1103,9 @@ class ExecutionResultList:
         dominant_type = self._dominant_result_type(final_results)
 
         if headline:
-            display(HTML("<div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>Result summary</h5><p>Summary of final_result values across all results:</p></div>"))
+            html += "<div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>Result summary</h5><p>Summary of final_result values across all results:</p></div>"
 
-        summary_html = (
+        html += (
             "<div style='margin:10px 0 14px 0;'>"
             f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
             f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
@@ -1125,23 +1113,28 @@ class ExecutionResultList:
             f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
             "</div>"
         )
-        display(HTML(summary_html))
 
         if dominant_type == "numeric":
-            self._render_numeric_histogram(final_results)
+            html += self._render_numeric_histogram(final_results)
         elif dominant_type == "string":
             joined_text = " ".join([str(v) for v in final_results if self._classify_final_result(v) == "string"])
-            self._render_word_cloud(joined_text, "Word cloud of final_result text")
+            html += self._render_word_cloud(joined_text, "Word cloud of final_result text")
         elif dominant_type == "image":
-            self._render_images_grid(final_results)
+            html += self._render_images_grid(final_results)
         elif dominant_type == "dataframe":
-            self._render_dataframe_columns_wordcloud(final_results)
+            html += self._render_dataframe_columns_wordcloud(final_results)
         else:
             preview = "<br>".join([str(v)[:200] for v in final_results[:10]])
-            display(HTML(f"<p><em>Dominant type is not directly visualized. Preview:</em><br>{preview}</p>"))
+            html += f"<p><em>Preview:</em><br>{preview}</p>"
+
+        return html
 
     def display_result_history(self, headline: bool = False):
+        display(HTML(self._render_result_history(headline=headline)))
+
+    def _render_result_history(self, headline: bool = False):
         """Render a simplified table of former_result chains for each result."""
+        html = ""
         rows_html = []
 
         for row_index, result in enumerate(self.results):
@@ -1171,7 +1164,7 @@ class ExecutionResultList:
                 "<h5 style='margin:0 0 8px 0;'>Result tracing</h5>"
                 "Results changed from iteration to iteration as follows (final results on the right):"
                 "</div>")
-            display(HTML(table_html))
+            html += table_html
 
         table_html = (
             "<div style='overflow-x:auto;'>"
@@ -1183,33 +1176,13 @@ class ExecutionResultList:
             "</div>"
         )
 
-        display(HTML(table_html))
+        html += table_html
+        return html
 
     def _populate_overview(self):
         """Build overview tab content as HTML."""
-        type_counts = {
-            "numeric": 0,
-            "string": 0,
-            "image": 0,
-            "dataframe": 0,
-            "other": 0,
-        }
-
-        final_results = self._get_final_results()
-        for value in final_results:
-            type_counts[self._classify_final_result(value)] += 1
-
-        dominant_type = self._dominant_result_type(final_results) if final_results else "none"
-
-        summary_html = (
-            "<div style='margin:10px 0 14px 0;'>"
-            "<h5 style='margin:0 0 8px 0;'>Result summary</h5>"
-            f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
-            f"<p><strong>Dominant type:</strong> {html.escape(str(dominant_type))}</p>"
-            f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
-            f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
-            "</div>"
-        )
+        html = self._render_result_summary(headline=True)
+        html += self._render_result_history(headline=True)
 
         rows_html = []
         for row_index, result in enumerate(self.results):
@@ -1244,10 +1217,8 @@ class ExecutionResultList:
             "</table>"
             "</div>"
         )
-
-        from ._config import config
-        config_html = config._repr_html_()
-        return summary_html + history_html + config_html
+        
+        return html
 
     def display(self):
         """Display the tabbed interface."""
