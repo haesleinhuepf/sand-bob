@@ -93,7 +93,9 @@ This figure explains how `n_codefix_attempts` and `n_feedback_iterations` work t
 
 ![](flowchart.png)
 
-### Result history
+## Prompting hints
+
+### Inconsistency visualization
 
 During the process of code improvement, error messages and results are stored. You can visualize them to differentiate cases, where finding a solution was straightforward:
 
@@ -105,6 +107,12 @@ During the process of code improvement, error messages and results are stored. Y
 
 
 Note that even if multiple code generations / executions return the same result, does not necessarily mean the result is correct.
+
+### Result type specification
+
+It is recommended to specify clearly the type of the final result that you expect from a data analysis process. Only if you phrase this clearly, the LLM can check if this condition is fulfilled and stop improving data analysis code then.
+
+![](result_specs.png)
 
 ## Limitations
 

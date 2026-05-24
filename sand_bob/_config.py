@@ -20,7 +20,7 @@ Assume your code will be executed in a Jupyter notebook cell.
 
 # Framework constraints
 * You may use the following libraries, but only if necessary: {dependencies_str}
-* When saving files, use the following folder: "{display_output_path}/"
+* When saving files, use the following folder: "{display_output_path}/". Do not create this folder. It exists already.
 * pip install is STRICTLY PROHIBITED. You can only use the libraries mentioned above.
 * Statistics: When applying statisticals test, ENSURE that pre-conditions for the tests are checked before the tests are performed.
 * Final result output (print or display calls): 

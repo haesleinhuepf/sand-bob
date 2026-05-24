@@ -19,6 +19,246 @@ from dataclasses import dataclass
 import base64
 from io import BytesIO
 
+
+def populate_save_notebook(
+    result_source: Any,
+    save_notebook_output: Optional[widgets.Output] = None,
+) -> Optional[widgets.Output]:
+    """Create/save-notebook UI for an ExecutionResult or a collection of results."""
+
+    NOTEBOOK_PATH = '/display_output/notebook_executed.ipynb'
+
+    def is_execution_result_like(obj: Any) -> bool:
+        return hasattr(obj, "files") and hasattr(obj, "former_result")
+
+    def find_first_available_untitled() -> str:
+        counter = 1
+        while True:
+            filename = f"Untitled{counter}.ipynb"
+            if not os.path.exists(filename):
+                return filename
+            counter += 1
+
+    def get_available_notebooks(result: Any, depth: int = 0) -> List[Any]:
+        notebooks = []
+        files = getattr(result, "files", None)
+        if files and NOTEBOOK_PATH in files:
+            notebooks.append((f"Current Result (depth {depth})", result))
+
+        former_result = getattr(result, "former_result", None)
+        if former_result is not None:
+            notebooks.extend(get_available_notebooks(former_result, depth + 1))
+
+        return notebooks
+
+    def normalize_result_entries(source: Any) -> List[Any]:
+        if is_execution_result_like(source):
+            return [("Result 1", source)]
+
+        if isinstance(source, list):
+            entries = source
+            tab_names = None
+        elif hasattr(source, "results") and isinstance(getattr(source, "results"), list):
+            entries = getattr(source, "results")
+            tab_names = getattr(source, "tab_names", None)
+        else:
+            return []
+
+        normalized = []
+        for i, item in enumerate(entries):
+            if not is_execution_result_like(item):
+                continue
+            label = f"Result {i + 1}"
+            if isinstance(tab_names, list) and i < len(tab_names):
+                label = str(tab_names[i])
+            normalized.append((label, item))
+        return normalized
+
+    result_entries = normalize_result_entries(result_source)
+    if not result_entries:
+        return None
+
+    has_any_notebook = any(get_available_notebooks(result) for _, result in result_entries)
+    if not has_any_notebook:
+        return None
+
+    output = save_notebook_output or widgets.Output()
+
+    with output:
+        output.clear_output(wait=True)
+
+        is_multi_result_source = len(result_entries) > 1 or not is_execution_result_like(result_source)
+
+        filename_input = widgets.Text(
+            value=find_first_available_untitled(),
+            description='Filename:',
+            style={'description_width': '100px'},
+            layout=widgets.Layout(width='400px')
+        )
+
+        notebook_dropdown = widgets.Dropdown(
+            options=[],
+            description='History:',
+            style={'description_width': '100px'},
+            layout=widgets.Layout(width='400px')
+        )
+
+        result_dropdown = None
+        if is_multi_result_source:
+            result_dropdown = widgets.Dropdown(
+                options=[(str(name), result) for name, result in result_entries],
+                value=result_entries[0][1],
+                description='Result:',
+                style={'description_width': '100px'},
+                layout=widgets.Layout(width='400px')
+            )
+
+        save_button = widgets.Button(
+            description='💾 Save Notebook',
+            button_style='success',
+            layout=widgets.Layout(width='150px')
+        )
+
+        status_output = widgets.Output()
+
+        def show_success_message(filename, filepath, current_dir, was_overwritten=False):
+            overwrite_note = "<p><em>Previous file was overwritten.</em></p>" if was_overwritten else ""
+            success_html = f"""
+            <div style='color: green;'>
+                <h4>Notebook Saved Successfully</h4>
+                <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
+                <p><strong>Location:</strong> {current_dir}</p>
+                {overwrite_note}
+            </div>
+            """
+            display(HTML(success_html))
+
+        def show_error_message(error):
+            error_html = f"""
+            <div style='color: red;'>
+                <h4>Error Saving Notebook</h4>
+                <p><strong>Error:</strong> {str(error)}</p>
+            </div>
+            """
+            display(HTML(error_html))
+
+        def save_notebook_file(filepath, notebook_content):
+            try:
+                with open(filepath, 'wb') as f:
+                    f.write(notebook_content)
+                return True
+            except Exception as e:
+                return e
+
+        def get_notebook_options_for_result(selected_result):
+            notebooks = get_available_notebooks(selected_result)
+
+            ordered_notebooks = []
+            for i, (name, result) in enumerate(notebooks):
+                new_name = "Iteration " + str(len(notebooks) - i)
+                ordered_notebooks.append((new_name, result))
+
+            ordered_notebooks.reverse()
+            return ordered_notebooks
+
+        def update_notebook_dropdown(selected_result):
+            notebook_options = get_notebook_options_for_result(selected_result)
+            if notebook_options:
+                notebook_dropdown.options = notebook_options
+                notebook_dropdown.value = notebook_options[-1][1]
+            else:
+                notebook_dropdown.options = [("No notebooks available", None)]
+                notebook_dropdown.value = None
+
+        if result_dropdown is not None:
+            update_notebook_dropdown(result_dropdown.value)
+
+            def on_result_change(change):
+                if change.get('name') != 'value':
+                    return
+                update_notebook_dropdown(change['new'])
+
+            result_dropdown.observe(on_result_change)
+        else:
+            update_notebook_dropdown(result_entries[0][1])
+
+        def on_save_click(_b):
+            with status_output:
+                status_output.clear_output(wait=True)
+
+                try:
+                    selected_notebook = notebook_dropdown.value
+                    filename = filename_input.value.strip()
+
+                    if not filename:
+                        display(HTML("<div style='color: red;'>Please enter a filename</div>"))
+                        return
+
+                    if selected_notebook is None:
+                        display(HTML("<div style='color: red;'>No notebook available for the selected result.</div>"))
+                        return
+
+                    if not filename.endswith('.ipynb'):
+                        filename += '.ipynb'
+
+                    notebook_content = selected_notebook.files[NOTEBOOK_PATH]
+                    current_dir = os.getcwd()
+                    filepath = os.path.join(current_dir, filename)
+
+                    if os.path.exists(filepath):
+                        confirm_html = f"""
+                        <div style='color: orange;'>
+                            <h4>File Already Exists</h4>
+                            <p>The file <strong>{filename}</strong> already exists. Do you want to overwrite it?</p>
+                        </div>
+                        """
+                        display(HTML(confirm_html))
+
+                        confirm_button = widgets.Button(
+                            description='Confirm Overwrite',
+                            button_style='warning',
+                            layout=widgets.Layout(width='200px'),
+                            style={'button_color': '#ff8c00'}
+                        )
+
+                        def on_confirm_overwrite(_b):
+                            with status_output:
+                                status_output.clear_output(wait=True)
+                                result = save_notebook_file(filepath, notebook_content)
+                                if result is True:
+                                    show_success_message(filename, filepath, current_dir, was_overwritten=True)
+                                else:
+                                    show_error_message(result)
+
+                        confirm_button.on_click(on_confirm_overwrite)
+                        display(confirm_button)
+                        return
+
+                    result = save_notebook_file(filepath, notebook_content)
+                    if result is True:
+                        show_success_message(filename, filepath, current_dir, was_overwritten=False)
+                    else:
+                        show_error_message(result)
+
+                except Exception as e:
+                    show_error_message(e)
+
+        save_button.on_click(on_save_click)
+
+        rows = []
+        if result_dropdown is not None:
+            rows.append(widgets.HBox([result_dropdown]))
+        rows.extend([
+            widgets.HBox([notebook_dropdown]),
+            widgets.HBox([filename_input]),
+            widgets.HBox([save_button]),
+        ])
+
+        controls_layout = widgets.VBox([widgets.HBox(rows), status_output])
+        display(controls_layout)
+
+    return output
+
 @dataclass
 class ExecutionResult:
     """Result of code execution with details, outputs, and an interactive widget interface."""
@@ -52,8 +292,11 @@ class ExecutionResult:
         from io import BytesIO
         import base64
 
-        self._create_widget()
-        display(self.widget)
+        html = self._render_tabs_and_history_widget()
+
+        if not self.render_inline:
+            display(HTML(html))
+
         if self.save_notebook_output is not None:
             display(self.save_notebook_output)
 
@@ -61,7 +304,7 @@ class ExecutionResult:
             return ""
 
 
-        return self._html_output()
+        return html + self._html_output()
     
     def _html_output(self):
         
@@ -78,54 +321,53 @@ class ExecutionResult:
         return parsed_output
 
 
-    def _create_widget(self, include_chain_selector: bool = True):
-            """Create the main interface using HTML tabs and optional history selector."""
-            # Keep ipywidgets only for the save notebook section.
-            self.save_notebook_output = None
-            if self.files and '/display_output/notebook_executed.ipynb' in self.files:
-                    self.save_notebook_output = widgets.Output()
-                    self._populate_save_notebook()
+    def _render_tabs_and_history_widget(self, include_history_selector: bool = True):
+        """Create the main interface using HTML tabs and optional history selector."""
+        # Keep ipywidgets only for the save notebook section.
+        self.save_notebook_output = None
+        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
+            self.save_notebook_output = populate_save_notebook(self)
 
-            chain: List[ExecutionResult] = [self]
-            if include_chain_selector:
-                    chain = []
-                    cursor = self
-                    seen = set()
-                    while cursor is not None:
-                            cursor_id = id(cursor)
-                            if cursor_id in seen:
-                                    break
-                            seen.add(cursor_id)
-                            chain.append(cursor)
-                            cursor = cursor.former_result
-                    chain = list(reversed(chain))
+        chain: List[ExecutionResult] = [self]
+        if include_history_selector:
+            chain = []
+            cursor = self
+            seen = set()
+            while cursor is not None:
+                cursor_id = id(cursor)
+                if cursor_id in seen:
+                        break
+                seen.add(cursor_id)
+                chain.append(cursor)
+                cursor = cursor.former_result
+            chain = list(reversed(chain))
 
-            root_id = f"sb-res-{uuid.uuid4().hex}"
-            sections_html = []
-            options_html = []
+        root_id = f"sb-res-{uuid.uuid4().hex}"
+        sections_html = []
+        options_html = []
 
-            for i, result in enumerate(chain):
-                    label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
-                    options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
-                    section_style = "" if i == len(chain) - 1 else "display:none;"
-                    sections_html.append(
-                            f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
-                            f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
-                    )
+        for i, result in enumerate(chain):
+                label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
+                options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
+                section_style = "" if i == len(chain) - 1 else "display:none;"
+                sections_html.append(
+                        f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
+                        f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
+                )
 
-            history_selector_html = ""
-            if include_chain_selector and len(chain) > 1:
-                    history_selector_html = (
-                            f"<div class='sb-history-bar'>"
-                            f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
-                            f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
-                            f"</div>"
-                    )
+        history_selector_html = ""
+        if include_history_selector and len(chain) > 1:
+                history_selector_html = (
+                        f"<div class='sb-history-bar'>"
+                        f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
+                        f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
+                        f"</div>"
+                )
 
-            script_html = ""
-            if include_chain_selector and len(chain) > 1:
-                    default_index = len(chain) - 1
-                    script_html = f"""
+        script_html = ""
+        if include_history_selector and len(chain) > 1:
+                default_index = len(chain) - 1
+                script_html = f"""
 <script>
 (function() {{
     const root = document.getElementById('{root_id}');
@@ -147,7 +389,7 @@ class ExecutionResult:
 </script>
 """
 
-            html_content = f"""
+        html_content = f"""
 <div id='{root_id}' class='sb-result-root'>
     {ExecutionResult._tabs_css()}
     {history_selector_html}
@@ -155,7 +397,7 @@ class ExecutionResult:
 </div>
 {script_html}
 """
-            self.widget = HTML(html_content)
+        return html_content
 
     @staticmethod
     def _tabs_css() -> str:
@@ -376,7 +618,10 @@ class ExecutionResult:
         display(HTML(self._output_html()))
 
     def _output_html(self) -> str:
-        return "<div><h4>Execution Output</h4>" + self._html_output() + "</div>"
+        if self.error is not None:
+            return f"<div><h4>Error: {html.escape(self.error)}</h4></div><pre>{html.escape(self.traceback or '')}</pre>"
+        else:
+            return "<div><h4>Execution Output</h4>" + self._html_output() + "</div>"
 
     def _stdout_html(self) -> str:
         if self.stdout:
@@ -578,178 +823,6 @@ class ExecutionResult:
     def display_output(self):
         display(HTML("<pre>" + self._html_output() + "</pre>"))    
 
-    def _populate_save_notebook(self):
-        """Populate the save notebook section."""
-        with self.save_notebook_output:
-            self.save_notebook_output.clear_output(wait=True)
-            
-            # Helper function to find first available Untitled filename
-            def find_first_available_untitled():
-                import os
-                counter = 1
-                while True:
-                    filename = f"Untitled{counter}.ipynb"
-                    if not os.path.exists(filename):
-                        return filename
-                    counter += 1
-            
-            # Helper function to get all available notebooks recursively
-            def get_available_notebooks(result, depth=0):
-                notebooks = []
-                if result.files and '/display_output/notebook_executed.ipynb' in result.files:
-                    notebooks.append((f"Current Result (depth {depth})", result))
-                
-                if result.former_result:
-                    notebooks.extend(get_available_notebooks(result.former_result, depth + 1))
-                
-                return notebooks
-            
-            # Get available notebooks
-            available_notebooks = get_available_notebooks(self)
-            
-            if not available_notebooks:
-                display(HTML("<div><h4>❌ No notebooks available to save</h4></div>"))
-                return
-            
-            # Create widgets
-            filename_input = widgets.Text(
-                value=find_first_available_untitled(),
-                description='Filename:',
-                style={'description_width': '100px'},
-                layout=widgets.Layout(width='400px')
-            )
-            
-            notebook_dropdown = widgets.Dropdown(
-                options=[(f"{name}", notebook) for name, notebook in available_notebooks],
-                value=available_notebooks[0][1] if available_notebooks else None,
-                description='Notebook:',
-                style={'description_width': '100px'},
-                layout=widgets.Layout(width='400px')
-            )
-            
-            save_button = widgets.Button(
-                description='Save Notebook',
-                button_style='success',
-                layout=widgets.Layout(width='150px')
-            )
-            
-            # Output widget for status messages
-            status_output = widgets.Output()
-            
-            # Helper functions to avoid code duplication
-            def show_success_message(filename, filepath, current_dir, was_overwritten=False):
-                """Display success message after saving notebook."""
-                overwrite_note = "<p><em>Previous file was overwritten.</em></p>" if was_overwritten else ""
-                success_html = f"""
-                <div style='color: green;'>
-                    <h4>✅ Notebook Saved Successfully</h4>
-                    <p><strong>File:</strong> <a href='{filepath}' target='_blank'>{filename}</a></p>
-                    <p><strong>Location:</strong> {current_dir}</p>
-                    {overwrite_note}
-                </div>
-                """
-                display(HTML(success_html))
-            
-            def show_error_message(error):
-                """Display error message when saving fails."""
-                error_html = f"""
-                <div style='color: red;'>
-                    <h4>❌ Error Saving Notebook</h4>
-                    <p><strong>Error:</strong> {str(error)}</p>
-                </div>
-                """
-                display(HTML(error_html))
-            
-            def save_notebook_file(filepath, notebook_content):
-                """Save the notebook file and return success status."""
-                try:
-                    with open(filepath, 'wb') as f:
-                        f.write(notebook_content)
-                    return True
-                except Exception as e:
-                    return e
-            
-            # Save button click handler
-            def on_save_click(b):
-                with status_output:
-                    status_output.clear_output(wait=True)
-                    
-                    try:
-                        selected_notebook = notebook_dropdown.value
-                        filename = filename_input.value.strip()
-                        
-                        if not filename:
-                            display(HTML("<div style='color: red;'>❌ Please enter a filename</div>"))
-                            return
-                        
-                        if not filename.endswith('.ipynb'):
-                            filename += '.ipynb'
-                        
-                        # Get the notebook content
-                        notebook_content = selected_notebook.files['/display_output/notebook_executed.ipynb']
-                        
-                        # Get current working directory
-                        import os
-                        current_dir = os.getcwd()
-                        filepath = os.path.join(current_dir, filename)
-                        
-                        # Check if file already exists
-                        if os.path.exists(filepath):
-                            # Show confirmation dialog instead of auto-overwriting
-                            confirm_html = f"""
-                            <div style='color: orange;'>
-                                <h4>⚠️ File Already Exists</h4>
-                                <p>The file <strong>{filename}</strong> already exists. Do you want to overwrite it?</p>
-                            </div>
-                            """
-                            display(HTML(confirm_html))
-                            
-                            # Create a confirmation button widget
-                            confirm_button = widgets.Button(
-                                description='Confirm Overwrite',
-                                button_style='warning',
-                                layout=widgets.Layout(width='200px'),
-                                style={'button_color': '#ff8c00'}  # Orange color matching the warning text
-                            )
-                            
-                            def on_confirm_overwrite(b):
-                                with status_output:
-                                    status_output.clear_output(wait=True)
-                                    result = save_notebook_file(filepath, notebook_content)
-                                    if result is True:
-                                        show_success_message(filename, filepath, current_dir, was_overwritten=True)
-                                    else:
-                                        show_error_message(result)
-                            
-                            confirm_button.on_click(on_confirm_overwrite)
-                            display(confirm_button)
-                            return
-                        
-                        # Write the notebook file (file doesn't exist)
-                        result = save_notebook_file(filepath, notebook_content)
-                        if result is True:
-                            show_success_message(filename, filepath, current_dir, was_overwritten=False)
-                        else:
-                            show_error_message(result)
-                        
-                    except Exception as e:
-                        show_error_message(e)
-            
-            save_button.on_click(on_save_click)
-            
-            # Create layout
-            controls_layout = widgets.VBox([
-                widgets.HBox([notebook_dropdown]),
-                widgets.HBox([filename_input]),
-                widgets.HBox([save_button]),
-                status_output
-            ])
-            
-            display(HTML("<div><h4>💾 Save Notebook</h4></div>"))
-            display(controls_layout)
-
-
-
 class ExecutionResultList:
     """
     A GUI class that represents a list of ExecutionResult objects with tabs.
@@ -785,7 +858,7 @@ class ExecutionResultList:
         self._create_tabbed_interface()
     
     def _create_tabbed_interface(self):
-        """Create an HTML tab interface (ipywidgets-free)."""
+        """Create an HTML tab interface"""
         tab_titles = ["Overview"]
         tab_panels = [self._populate_overview()]
 
@@ -793,19 +866,14 @@ class ExecutionResultList:
             if result is None:
                 continue
 
-            temp = result.render_inline if hasattr(result, 'render_inline') else True
-            result.render_inline = False
-            result._create_widget(include_chain_selector=False)
+            tab_content = result._render_tabs_and_history_widget()
 
-            if hasattr(result, 'widget'):
-                tab_content = result.widget.data if hasattr(result.widget, 'data') else str(result.widget)
-                tab_panels.append(tab_content)
-                if i < len(self.tab_names):
-                    tab_titles.append(self.tab_names[i])
-                else:
-                    tab_titles.append(f"Result {i + 1}")
+            tab_panels.append(tab_content)
+            if i < len(self.tab_names):
+                tab_titles.append(self.tab_names[i])
+            else:
+                tab_titles.append(f"Result {i + 1}")
 
-            result.render_inline = temp
 
         root_id = f"sb-list-{uuid.uuid4().hex}"
         buttons = []
@@ -867,6 +935,8 @@ class ExecutionResultList:
 </script>
 """
     )
+
+        self.save_notebook_output = populate_save_notebook(self)
 
     def _get_final_results(self) -> List[Any]:
         """Collect non-empty final results from the list."""
@@ -1226,6 +1296,8 @@ class ExecutionResultList:
     def display(self):
         """Display the tabbed interface."""
         display(self.tab_widget_html)
+        if getattr(self, 'save_notebook_output', None) is not None:
+            display(self.save_notebook_output)
     
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
