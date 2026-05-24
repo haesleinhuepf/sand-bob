@@ -1,4 +1,4 @@
-# Sand-Bob <img src="docs/sand-bob-logo.png" height="50" align="center">
+# Sand-Bob <img src="docs/sand-bob-logo2.png" height="45" align="center">
 
 [![Star on GitHub](https://img.shields.io/github/stars/haesleinhuepf/sand-bob?style=social)](https://github.com/haesleinhuepf/sand-bob/stargazers)
 

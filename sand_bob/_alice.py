@@ -17,9 +17,9 @@ def alice(line, cell=None):
     from IPython import get_ipython
 
     user_input = combine_user_input(line, cell)
-    res = generate_code(user_input,
-                                     dependencies=Context.dependencies,
-                                     input_host_path=Context.input_host_path,
+    res = generate_code(prompt=user_input,
+                        dependencies=Context.dependencies,
+                        input_host_path=Context.input_host_path,
                         n_codefix_attempts=Context.n_codefix_attempts,
                         n_feedback_iterations = Context.n_feedback_iterations,
                         n_parallel=Context.n_parallel,

@@ -167,6 +167,19 @@ Our draft notebook looks like this:
 
 Now update the Jupyter notebook in MystNB format above and make it easier to read and understand. Do not modify the python code itself. No additional explanation is needed.
 """
+        self.prompt_template_summarize_code = """
+You are an expert in python programming. You are given a python code snippet.
+
+# Code
+```
+{code}
+```
+
+# Summary
+Your task is to summarize the code in a bullet point list mentioning the names of the most important used algorithms in the code.
+Ignore file loading, visualization, type-conversion, and other peripheral code as much as possible. 
+Make it very concise, give only names of algorithms. Do not explain or describe algorithms.
+"""
 
     @staticmethod
     def _get_callable_name_and_model(prompt_callable):

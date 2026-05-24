@@ -758,19 +758,8 @@ def summarize_code(code:str):
     str
         Bullet-point summary focused on core algorithms.
     """
-
-    prompt = f"""
-You are an expert in python programming. You are given a python code snippet.
-Your task is to summarize the code in a bullet point list mentioning the names of the used core-algorithms.
-Stay concise, do not mention minor details, but focus on the core of what the code is doing and how it is doing it.
-
-# Code
-```
-{code}
-```
-
-# Summary
-"""
-
     from ._config import config
+
+    prompt = config.prompt_template_summarize_code.format(code=code)
+
     return config.prompt_function_summarize_code(prompt)

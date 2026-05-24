@@ -109,14 +109,20 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
     
     # Use a lock to protect shared state
     lock = threading.Lock()
+
+    result_collection = []
     
     def execute_and_track(execution_id, summaries=None):
         nonlocal completed_count
         try:
             kwargs_copy = copy.deepcopy(kwargs)
-            if vary_algorithm:    
+            if vary_algorithm and summaries is not None and any(summaries):    
+                if "prompt" not in kwargs_copy:
+                    raise ValueError("To use 'vary_algorithm', you need to set 'prompt' as keyword argument.")
+
                 for k, v  in (kwargs_copy.items()):
                     if k == "prompt":
+                        summaries = "\n".join(summaries)
                         kwargs_copy[k] = f"{v}\n\nTry to avoid these algorithms: \n{summaries}"
                         break
 
@@ -129,6 +135,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 if status_display:
                     status_display.status_text = f"Process {completed_count}/{total_executions} completed"
                     status_display.add_progress(1)
+                result_collection.append(result)
             return result
         except Exception as exc:
             print(f'Execution {execution_id} generated an exception: {exc}')
@@ -148,7 +155,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
         
         # Submit initial n_parallel tasks
         for i in range(min(n_parallel, total_executions)):
-            future = executor.submit(execute_and_track, next_execution_id)
+            future = executor.submit(execute_and_track, next_execution_id) # do not pass summaries for the first batch (because there are none yet)
             active_futures[future] = next_execution_id
             next_execution_id += 1
         
@@ -164,7 +171,7 @@ def _execute_parallel_iterative(func, args, kwargs, n_parallel, n_iterative, sta
                 
                 # Submit a new task if we haven't submitted all yet
                 if next_execution_id < total_executions:
-                    new_future = executor.submit(execute_and_track, next_execution_id)
+                    new_future = executor.submit(execute_and_track, next_execution_id, summaries=collect_summaries(result_collection))
                     active_futures[new_future] = next_execution_id
                     next_execution_id += 1
                 
