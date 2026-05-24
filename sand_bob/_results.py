@@ -971,7 +971,8 @@ class ExecutionResultList:
         from ._utilities import plt_to_html_image
 
         images = []
-        for value in values:
+        indices = []
+        for i, value in enumerate(values):
             if self._classify_final_result(value) != "image":
                 continue
 
@@ -984,6 +985,7 @@ class ExecutionResultList:
 
             if array_value is not None:
                 images.append(array_value)
+                indices.append(i)
 
         if not images:
             return "<p><em>No image values available for image grid.</em></p>"
@@ -997,12 +999,12 @@ class ExecutionResultList:
         for idx, ax in enumerate(axes):
             if idx < n_images:
                 ax.imshow(images[idx], cmap="gray" if images[idx].ndim == 2 else None)
-                ax.set_title(f"Result {idx + 1}")
+                ax.set_title(f"Result {indices[idx] + 1}")
                 ax.axis("off")
             else:
                 ax.axis("off")
 
-        fig.suptitle("Image final_result overview", y=1.02)
+        fig.suptitle("Image results overview", y=1.02)
         fig.tight_layout()
 
         return plt_to_html_image(fig)
@@ -1103,14 +1105,15 @@ class ExecutionResultList:
         dominant_type = self._dominant_result_type(final_results)
 
         if headline:
-            html += "<div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>Result summary</h5><p>Summary of final_result values across all results:</p></div>"
+            html += "<div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>Result summary</h5></div>"
+
+        def highlight_type(t):
+            return f"<strong>{t.capitalize()}</strong>" if t == dominant_type else t.capitalize()
 
         html += (
             "<div style='margin:10px 0 14px 0;'>"
-            f"<p><strong>Total results with final_result:</strong> {len(final_results)}</p>"
-            f"<p><strong>Dominant type:</strong> {dominant_type}</p>"
-            f"<p>Counts -> Numeric: {type_counts['numeric']}, String: {type_counts['string']}, "
-            f"Image: {type_counts['image']}, DataFrame: {type_counts['dataframe']}, Other: {type_counts['other']}</p>"
+            f"<p>{len(final_results)} results: {highlight_type('numeric')}: {type_counts['numeric']}, {highlight_type('string')}: {type_counts['string']}, "
+            f"{highlight_type('image')}: {type_counts['image']}, {highlight_type('dataframe')}: {type_counts['dataframe']}, {highlight_type('other')}: {type_counts['other']}</p>"
             "</div>"
         )
 

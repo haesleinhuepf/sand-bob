@@ -14,6 +14,7 @@ class Context:
 def alice(line, cell=None):
     from sand_bob._code_gen import generate_code
     from IPython.display import display
+    from IPython import get_ipython
 
     user_input = combine_user_input(line, cell)
     res = generate_code(user_input,
@@ -27,6 +28,12 @@ def alice(line, cell=None):
                         final_touch=Context.final_touch)
     #print("="*100)
     display(res)
+
+    try:
+        ip = get_ipython()
+        ip.user_ns["alice_result"] = res
+    except Exception as e:
+        pass
 
 
 def initialize(input_host_path: str=None, 

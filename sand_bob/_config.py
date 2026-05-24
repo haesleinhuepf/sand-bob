@@ -33,7 +33,7 @@ Assume your code will be executed in a Jupyter notebook cell.
 * Final result output (file writing):
   * If the task is to generate a text or a string, write the text or string to "{display_output_path}/final_result.txt".
   * If the task is to generate a table, write the table to "{display_output_path}/final_result.csv".
-  * If the final result is a plot, display this plot and afterwards, save it in the folder {display_output_path} as .png and as .svg file and print its filename in the final output of the program.
+  * If the final result is a plot, display this plot and afterwards, save it in the folder {display_output_path} as .png and as .svg file and print the filename of the .png in the final output of the program.
   * If the task is to generate a number, list, array or dictionary, write the result to "{display_output_path}/final_result.json".
     In that case, do not add additional data structures. Simply json.dump the result to the file. E.g. if the result is x=2, then just do `json.dump(x, fp)`.
   * If the final result was saved as file, make sure to print the filename in the final output of the program.  
