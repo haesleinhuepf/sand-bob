@@ -1,13 +1,17 @@
+POSSBILE_MARKDOWN_FENCES = ["```python", "```Python", "```nextflow", "```java", "```javascript", "```macro", "```groovy", "```cmd"
+                           "```jython", "```md", "```markdown", "```plaintext", "```tex", "```latex",
+                           "```txt", "```csv", "```yml", "```yaml", "```json", "```JSON", "```py", "```svg", "```xml", "<FILE>", "```"]
+
 def simplify(text):
     return text.strip().strip("\n").strip()
 
 def extract_code(text):
-    return remove_outer_markdown(text)
+    return fix_trivial_issues_in_code(remove_outer_markdown(text))
 
 
-POSSBILE_MARKDOWN_FENCES = ["```python", "```Python", "```nextflow", "```java", "```javascript", "```macro", "```groovy", "```cmd"
-                           "```jython", "```md", "```markdown", "```plaintext", "```tex", "```latex",
-                           "```txt", "```csv", "```yml", "```yaml", "```json", "```JSON", "```py", "```svg", "```xml", "<FILE>", "```"]
+def fix_trivial_issues_in_code(code):
+    code = code.replace("\"display_output", "\"/display_output")
+    return code
 
 def remove_outer_markdown(text):
     """
