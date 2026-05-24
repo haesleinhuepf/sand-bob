@@ -4,6 +4,7 @@ import os
 import json
 from dataclasses import dataclass
 from typing import List, Optional, Dict
+from unittest import result
 import docker
 from docker.errors import DockerException, BuildError
 import subprocess
@@ -349,70 +350,73 @@ class CodeExecutor:
             #json.dump(notebook_json, open("test.ipynb", "w"))
 
         if notebook_json is not None:
-            #print("notebook_json", notebook_json)
-
-            if notebook_json is not None:
-                outputs = []
-                for c in notebook_json["cells"]:
-                    if "outputs" in c:
-                        for o in c["outputs"]:
-                            if "data" in o:
-                                if "image/png" in o["data"]:
-                                    base64_image = o["data"]["image/png"]
-                                    pil_image, np_image = load_base64_image(base64_image)
-                                    outputs.append({
-                                        "type": "image/png",
-                                        "data": base64_image,
-                                        "np_image": np_image,
-                                        "pil_image": pil_image
-                                    })
-                                elif 'text/plain' in o["data"]:
-                                    text = o["data"]["text/plain"]
-                                    if isinstance(text, list):
-                                        text = "".join(text)
-                                    outputs.append({
-                                        "type": "text/plain",
-                                        "data": text.strip("\n")
-                                    })
-                                else:
-                                    print("unknown output type", o["data"].keys())
-                                    # Handle other output types
-                                    output_types = list(o["data"].keys())
-                                    outputs.append({
-                                        "type": "unknown",
-                                        "data": o["data"],
-                                        "output_types": output_types
-                                    })
-                            elif "text" in o:
-                                text = o["text"]
+        
+            outputs = []
+            for c in notebook_json["cells"]:
+                if "outputs" in c:
+                    for o in c["outputs"]:
+                        if "data" in o:
+                            if "image/png" in o["data"]:
+                                base64_image = o["data"]["image/png"]
+                                pil_image, np_image = load_base64_image(base64_image)
+                                outputs.append({
+                                    "type": "image/png",
+                                    "data": base64_image,
+                                    "np_image": np_image,
+                                    "pil_image": pil_image
+                                })
+                            elif 'text/plain' in o["data"]:
+                                text = o["data"]["text/plain"]
                                 if isinstance(text, list):
                                     text = "".join(text)
-
                                 outputs.append({
                                     "type": "text/plain",
                                     "data": text.strip("\n")
                                 })
                             else:
-                                print("unknown output", o.keys())
-                                # Handle outputs without data (like execution count, etc.)
+                                print("unknown output type", o["data"].keys())
+                                # Handle other output types
+                                output_types = list(o["data"].keys())
                                 outputs.append({
-                                    "type": "metadata",
-                                    "data": o
+                                    "type": "unknown",
+                                    "data": o["data"],
+                                    "output_types": output_types
                                 })
-                
-                # Store the outputs in the result
-                result.outputs = outputs
+                        elif "text" in o:
+                            text = o["text"]
+                            if isinstance(text, list):
+                                text = "".join(text)
 
-                if result.final_result is None and len(outputs) > 0:
-                    result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
+                            outputs.append({
+                                "type": "text/plain",
+                                "data": text.strip("\n")
+                            })
+                        else:
+                            print("unknown output", o.keys())
+                            # Handle outputs without data (like execution count, etc.)
+                            outputs.append({
+                                "type": "metadata",
+                                "data": o
+                            })
+            
+            # Store the outputs in the result
+            result.outputs = outputs
+
+            if result.final_result is None and len(outputs) > 0:
+                result.final_result = str(outputs[-1]["data"]).strip("\n").split("\n")[-1]
+                try:
+                    result.final_result = float(result.final_result)
+                except ValueError:
                     try:
-                        result.final_result = float(result.final_result)
+                        result.final_result = int(result.final_result)
                     except ValueError:
-                        try:
-                            result.final_result = int(result.final_result)
-                        except ValueError:
-                            pass
+                        pass
 
+        if result.final_result in result.objects:
+            key = result.final_result
+            if key.endswith(".svg") and key[:-4] + ".png" in result.objects:
+                key = key[:-4] + ".png"
+            result.final_result = result.objects[key]
         
         return result
 

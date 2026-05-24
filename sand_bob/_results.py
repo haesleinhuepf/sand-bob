@@ -163,7 +163,7 @@ class ExecutionResult:
 <style>
 .sb-result-root {
     --sb-border: #c8c8c8;
-    --sb-tab-bg: #e4e4e4;
+    --sb-tab-bg: #f1f1f1;
     --sb-tab-hover-bg: #dadada;
     --sb-active-bg: #ffffff;
     --sb-content-bg: #ffffff;
@@ -204,7 +204,7 @@ class ExecutionResult:
 .sb-tabs {
     border: none;
     border-radius: 0;
-    background: var(--sb-content-bg);
+    background: transparent;
     box-shadow: none;
     overflow: hidden;
 }
@@ -226,7 +226,7 @@ class ExecutionResult:
     border: 1px solid var(--sb-border);
     border-bottom: none;
     margin: 0;
-    background: var(--sb-tab-bg);
+    background: transparent;
     color: var(--sb-muted-text);
     padding: 5px 12px;
     cursor: pointer;
@@ -239,12 +239,12 @@ class ExecutionResult:
 }
 
 .sb-tab-btn:hover {
-    background: var(--sb-tab-hover-bg);
+    background: transparent;
     color: var(--sb-text);
 }
 
 .sb-tab-btn.active {
-    background: var(--sb-active-bg);
+    background: transparent;
     color: var(--sb-text);
     font-weight: 500;
     border-color: var(--sb-border);
@@ -256,7 +256,7 @@ class ExecutionResult:
 
 .sb-tab-content {
     padding: 14px;
-    background: var(--sb-content-bg);
+    background: transparent;
     border-left: 1px solid var(--sb-border);
     border-right: 1px solid var(--sb-border);
     border-bottom: 1px solid var(--sb-border);
@@ -543,10 +543,10 @@ class ExecutionResult:
             details_html += "</ul></li>"
 
         if self.traceback:
-            details_html += f"<li><strong>Traceback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.traceback)}</pre></li>"
+            details_html += f"<li><strong>Traceback:</strong><pre style='padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.traceback)}</pre></li>"
 
         if self.feedback:
-            details_html += f"<li><strong>Feedback:</strong><pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.feedback)}</pre></li>"
+            details_html += f"<li><strong>Feedback:</strong><pre style='padding: 10px; border-radius: 5px; color: red;'>{html.escape(self.feedback)}</pre></li>"
 
         if config.debug:
             details_html += f"<li><strong>Exit Code:</strong> <span style='color: {'green' if self.exit_code == 0 else 'red'};'>{self.exit_code}</span></li>"
@@ -565,7 +565,7 @@ class ExecutionResult:
                     build_log_text = f"{first_lines}\n\n... ({len(lines) - 100} lines omitted) ...\n\n{last_lines}"
                 details_html += (
                     "<li><strong>Build Log:</strong>"
-                    f"<pre style='background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{html.escape(build_log_text)}</pre></li>"
+                    f"<pre style='padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto;'>{html.escape(build_log_text)}</pre></li>"
                 )
 
         details_html += "</ul></div>"
