@@ -923,45 +923,28 @@ class ExecutionResultList:
         """Render a word cloud for text data with a fallback when wordcloud is unavailable."""
         import matplotlib.pyplot as plt
         from collections import Counter
+        from ._utilities import plt_to_html_image
 
         cleaned = " ".join(str(text).split())
         if not cleaned:
-            display(HTML("<p><em>No text available for word cloud.</em></p>"))
+            return "<p><em>No text available for word cloud.</em></p>"
             return
 
-        try:
-            from wordcloud import WordCloud
+        from wordcloud import WordCloud
 
-            wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.imshow(wc, interpolation="bilinear")
-            ax.axis("off")
-            ax.set_title(title)
-            display(fig)
-            plt.close(fig)
-            return
-        except Exception:
-            pass
-
-        # Fallback: simple frequency chart when wordcloud dependency is unavailable.
-        tokens = [t for t in cleaned.split(" ") if t]
-        token_counts = Counter(tokens).most_common(20)
-        if not token_counts:
-            display(HTML("<p><em>No tokens available for fallback frequency plot.</em></p>"))
-            return
-
-        labels = [item[0] for item in token_counts]
-        counts = [item[1] for item in token_counts]
+        wc = WordCloud(width=1000, height=500, background_color="white").generate(cleaned)
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.barh(labels[::-1], counts[::-1], color="#4C72B0")
-        ax.set_title(f"{title} (fallback frequency chart)")
-        ax.set_xlabel("Frequency")
-        display(fig)
-        plt.close(fig)
+        ax.imshow(wc, interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title(title)
+        
+        return plt_to_html_image(fig)
+    
 
-    def _render_numeric_histogram(self, values: List[Any]):
-        """Render a histogram for numeric final results."""
+    def _render_numeric_histogram(self, values: List[Any]) -> str:
+        """Render a histogram for numeric final results as an embeddable HTML image."""
         import matplotlib.pyplot as plt
+        from ._utilities import plt_to_html_image
 
         numeric_values = []
         for value in values:
@@ -969,8 +952,7 @@ class ExecutionResultList:
                 numeric_values.append(float(value))
 
         if not numeric_values:
-            display(HTML("<p><em>No numeric values available for histogram.</em></p>"))
-            return
+            return "<p><em>No numeric values available for histogram.</em></p>"
 
         fig, ax = plt.subplots(figsize=(9, 4))
         bins = min(20, max(5, len(numeric_values)))
@@ -978,14 +960,15 @@ class ExecutionResultList:
         ax.set_title("Distribution of final_result values")
         ax.set_xlabel("Value")
         ax.set_ylabel("Count")
-        display(fig)
-        plt.close(fig)
 
-    def _render_images_grid(self, values: List[Any]):
+        return plt_to_html_image(fig)
+
+    def _render_images_grid(self, values: List[Any]) -> str:
         """Render image-like final results in a grid."""
         import math
         import matplotlib.pyplot as plt
         import numpy as np
+        from ._utilities import plt_to_html_image
 
         images = []
         for value in values:
@@ -1003,8 +986,7 @@ class ExecutionResultList:
                 images.append(array_value)
 
         if not images:
-            display(HTML("<p><em>No image values available for image grid.</em></p>"))
-            return
+            return "<p><em>No image values available for image grid.</em></p>"
 
         n_images = len(images)
         n_cols = min(4, n_images)
@@ -1022,10 +1004,10 @@ class ExecutionResultList:
 
         fig.suptitle("Image final_result overview", y=1.02)
         fig.tight_layout()
-        display(fig)
-        plt.close(fig)
 
-    def _render_dataframe_columns_wordcloud(self, values: List[Any]):
+        return plt_to_html_image(fig)
+
+    def _render_dataframe_columns_wordcloud(self, values: List[Any]) -> str:
         """Render a word cloud based on DataFrame column names."""
         columns = []
         for value in values:
@@ -1036,10 +1018,9 @@ class ExecutionResultList:
                     continue
 
         if not columns:
-            display(HTML("<p><em>No DataFrame columns found.</em></p>"))
-            return
+            return "<p><em>Empty DataFrame</em></p>"
 
-        self._render_word_cloud(" ".join(columns), "DataFrame column names")
+        return self._render_word_cloud(" ".join(columns), "DataFrame column names")
 
     def _trace_result_chain(self, result: Optional[ExecutionResult]) -> List[ExecutionResult]:
         """Return a result chain from oldest to newest following former_result links."""
@@ -1064,38 +1045,35 @@ class ExecutionResultList:
         """Format one simplified table cell for a final_result value."""
         import html
 
-        color = "#111000"
+        color = "#ffffff"
 
         if value is None:
             bgcolor = "#b0b0b0"
+            color = "#111000"
 
         result_type = self._classify_final_result(value)
 
         output = str(value)
 
         if "Error" in output or "Exception" in output:
-            bgcolor = "#e24a4a"
-            color = "#ffffff"
+            bgcolor = "#e24a4a" 
         elif result_type == "dataframe":
-            bgcolor = "#f1ee2a"
-            color = "#111000"
+            bgcolor = "#f5b33a"
             output = f"DataFrame ({getattr(value, 'shape', '')})"
         elif result_type == "image":
             bgcolor = "#67cc23"
-            color = "#ffffff"
             output = "Image"
+            if hasattr(value, "shape"):
+                output += f" ({value.shape})"
         elif result_type == "numeric":
             bgcolor = "#4a90e2"
-            color = "#ffffff"
         elif result_type == "string":
             bgcolor = "#8a4fff"
-            color = "#ffffff"
             preview = html.escape(value[:10])
             length = len(value)
             output = f"{preview}... ({length})" if length > 10 else preview
         else:
             bgcolor = "#555555"
-            color = "#ffffff"
             output = html.escape(str(type(value)))
 
         return (
@@ -1203,8 +1181,8 @@ class ExecutionResultList:
 
     def _populate_overview(self):
         """Build overview tab content as HTML."""
-        html = self._render_result_summary()
-        html += self._render_result_history()
+        html = self._render_result_summary(headline=True)
+        html += self._render_result_history(headline=True)
 
         rows_html = []
         for row_index, result in enumerate(self.results):
@@ -1240,7 +1218,7 @@ class ExecutionResultList:
             "</div>"
         )
         
-        return summary_html + history_html
+        return html
 
     def display(self):
         """Display the tabbed interface."""
