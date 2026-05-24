@@ -63,8 +63,8 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'examples/benchmarking_llms';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Visualizing result consistency during iterative code improvement" href="consistency_visualization.html" />
-    <link rel="prev" title="Basic Sand-Bob usage: Code generation" href="basic_usage.html" />
+    <link rel="next" title="Benchmarking prompts using Sand-Bob" href="benchmarking_prompts.html" />
+    <link rel="prev" title="Error handling with Sand-Bob" href="error_handling.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -173,10 +173,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Benchmarking LLMs using Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="benchmarking_prompts.html">Benchmarking prompts using Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consistency_visualization.html">Visualizing result consistency during iterative code improvement</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gpu-support.html">GPU-support in Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plot_sigmoid.html">Saving resulting files</a></li>
@@ -379,7 +381,7 @@
 <p>You can use Sand-Bob to benchmark different language models solving coding-tasks. In this notebook we demonstrate how. Before starting, we define the task and the correct result.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Count the number of b&#39;s in blueberry.&quot;</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Count the number of b&#39;s in blueberry and print the number only.&quot;</span>
 <span class="n">ground_truth</span> <span class="o">=</span> <span class="mi">2</span>
 </pre></div>
 </div>
@@ -405,7 +407,6 @@ mxbai-embed-large:latest
 qwen:0.5b
 phi3:instruct
 phi3:latest
-mistral-nemo:latest
 llama3.1:latest
 </pre></div>
 </div>
@@ -413,7 +414,7 @@ llama3.1:latest
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">llms_to_test</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mistral&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen:0.5b&quot;</span><span class="p">]</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">llms_to_test</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;gemma3:4b&quot;</span><span class="p">,</span> <span class="s2">&quot;mistral&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen:0.5b&quot;</span><span class="p">]</span>
 </pre></div>
 </div>
 </div>
@@ -451,8 +452,12 @@ llama3.1:latest
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>mistral results: [&#39;None&#39;, &quot;{&#39;result&#39;:&quot;, &quot;{&#39;blueberr&quot;, &#39;None&#39;, &quot;{&#39;result&#39;:&quot;, &#39;2&#39;]
-Success rate: 0.16666666666666666
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>gemma3:4b results: [&#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;]
+Success rate: 1.0
+</pre></div>
+</div>
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>mistral results: [&#39;2&#39;, &#39;None&#39;, &#39;2&#39;, &#39;2&#39;, &#39;Warning: T&#39;, &#39;None&#39;]
+Success rate: 0.5
 </pre></div>
 </div>
 <div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>qwen:0.5b results: [&#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;]
@@ -469,7 +474,7 @@ Success rate: 0.0
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;mistral&#39;
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;gemma3:4b&#39;
 </pre></div>
 </div>
 </div>
@@ -507,20 +512,20 @@ Success rate: 0.0
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="basic_usage.html"
+       href="error_handling.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Basic Sand-Bob usage: Code generation</p>
+        <p class="prev-next-title">Error handling with Sand-Bob</p>
       </div>
     </a>
     <a class="right-next"
-       href="consistency_visualization.html"
+       href="benchmarking_prompts.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Visualizing result consistency during iterative code improvement</p>
+        <p class="prev-next-title">Benchmarking prompts using Sand-Bob</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

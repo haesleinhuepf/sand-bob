@@ -174,10 +174,12 @@
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="examples/benchmarking_llms.html">Benchmarking LLMs using Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/benchmarking_prompts.html">Benchmarking prompts using Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/consistency_visualization.html">Visualizing result consistency during iterative code improvement</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/gpu-support.html">GPU-support in Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/plot_sigmoid.html">Saving resulting files</a></li>
@@ -377,7 +379,11 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generate-code-to-handle-ai-generated-code-and-execution-results-as-variables"><code class="docutils literal notranslate"><span class="pre">generate_code</span></code> to handle AI-generated code and execution results as variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-programmatic-usage">Basic programmatic usage</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">Parameters</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#result-history">Result history</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prompting-hints">Prompting hints</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#inconsistency-visualization">Inconsistency visualization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#result-type-specification">Result type specification</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limitations">Limitations</a></li>
@@ -469,13 +475,21 @@
 <p>This figure explains how <code class="docutils literal notranslate"><span class="pre">n_codefix_attempts</span></code> and <code class="docutils literal notranslate"><span class="pre">n_feedback_iterations</span></code> work together:</p>
 <p><img alt="" src="_images/flowchart.png" /></p>
 </section>
-<section id="result-history">
-<h3>Result history<a class="headerlink" href="#result-history" title="Link to this heading">#</a></h3>
+</section>
+<section id="prompting-hints">
+<h2>Prompting hints<a class="headerlink" href="#prompting-hints" title="Link to this heading">#</a></h2>
+<section id="inconsistency-visualization">
+<h3>Inconsistency visualization<a class="headerlink" href="#inconsistency-visualization" title="Link to this heading">#</a></h3>
 <p>During the process of code improvement, error messages and results are stored. You can visualize them to differentiate cases, where finding a solution was straightforward:</p>
 <p><img alt="" src="_images/result_tracing_consistent.png" /></p>
 <p>… and cases where the system struggled to solve a task:</p>
 <p><img alt="" src="_images/result_tracing_inconsistent.png" /></p>
 <p>Note that even if multiple code generations / executions return the same result, does not necessarily mean the result is correct.</p>
+</section>
+<section id="result-type-specification">
+<h3>Result type specification<a class="headerlink" href="#result-type-specification" title="Link to this heading">#</a></h3>
+<p>It is recommended to specify clearly the type of the final result that you expect from a data analysis process. Only if you phrase this clearly, the LLM can check if this condition is fulfilled and stop improving data analysis code then.</p>
+<p><img alt="" src="_images/result_specs.png" /></p>
 </section>
 </section>
 <section id="limitations">
@@ -570,7 +584,11 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generate-code-to-handle-ai-generated-code-and-execution-results-as-variables"><code class="docutils literal notranslate"><span class="pre">generate_code</span></code> to handle AI-generated code and execution results as variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-programmatic-usage">Basic programmatic usage</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">Parameters</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#result-history">Result history</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prompting-hints">Prompting hints</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#inconsistency-visualization">Inconsistency visualization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#result-type-specification">Result type specification</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limitations">Limitations</a></li>

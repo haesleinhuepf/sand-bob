@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>&lt;no title&gt; &#8212; Sand-Bob Notebooks</title>
+    <title>Benchmarking prompts using Sand-Bob &#8212; Sand-Bob Notebooks</title>
   
   
   
@@ -60,9 +60,11 @@
     <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'examples/significance_testing';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'examples/benchmarking_prompts';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Visualizing result consistency during iterative code improvement" href="consistency_visualization.html" />
+    <link rel="prev" title="Benchmarking LLMs using Sand-Bob" href="benchmarking_llms.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -113,8 +115,6 @@
     <div class="bd-container__inner bd-page-width">
       
       
-      
-        
       
       <dialog id="pst-primary-sidebar-modal"></dialog>
       <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
@@ -176,9 +176,9 @@
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="benchmarking_llms.html">Benchmarking LLMs using Sand-Bob</a></li>
-<li class="toctree-l1"><a class="reference internal" href="benchmarking_prompts.html">Benchmarking prompts using Sand-Bob</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Benchmarking prompts using Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consistency_visualization.html">Visualizing result consistency during iterative code improvement</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gpu-support.html">GPU-support in Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plot_sigmoid.html">Saving resulting files</a></li>
@@ -258,7 +258,7 @@
       
       
       
-      <li><a href="https://github.com/haesleinhuepf/sand-bob/issues/new?title=Issue%20on%20page%20%2Fexamples/significance_testing.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/haesleinhuepf/sand-bob/issues/new?title=Issue%20on%20page%20%2Fexamples/benchmarking_prompts.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -288,7 +288,7 @@
       
       
       
-      <li><a href="../_sources/examples/significance_testing.ipynb" target="_blank"
+      <li><a href="../_sources/examples/benchmarking_prompts.ipynb" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -351,9 +351,7 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="fa-solid fa-list"></span>
-</button>
+
 </div></div>
       
     </div>
@@ -364,19 +362,11 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1><no title></h1>
+    <h1>Benchmarking prompts using Sand-Bob</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
             
-            <div>
-                <h2> Contents </h2>
-            </div>
-            <nav aria-label="Page">
-                <ul class="simple visible nav section-nav flex-column">
-</ul>
-
-            </nav>
         </div>
     </div>
 </div>
@@ -386,60 +376,89 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <div class="cell docutils container">
+  <section id="benchmarking-prompts-using-sand-bob">
+<h1>Benchmarking prompts using Sand-Bob<a class="headerlink" href="#benchmarking-prompts-using-sand-bob" title="Link to this heading">#</a></h1>
+<p>You can use Sand-Bob to benchmark different prompts. This might be useful for automated prompt engineering.</p>
+<div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sand_bob</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_code</span><span class="p">,</span> <span class="n">config_scadsai_llm</span>
-<span class="n">config_scadsai_llm</span><span class="p">()</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">prompts</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;Count the number of b&#39;s in blueberry.&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Count the number of b&#39;s in blueberry and print the number only.&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;I would like to know the number of B in blueberry.&quot;</span>
+<span class="p">]</span>
+<span class="n">ground_truth</span> <span class="o">=</span> <span class="mi">2</span>
 </pre></div>
 </div>
 </div>
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Write Python code that loads the file input_data/data.csv, </span>
-<span class="s2">determines if columns &#39;A&#39; and &#39;B&#39; are significantly different and </span>
-<span class="s2">prints out &#39;yes&#39; in case the p-value &lt; 0.05 and &#39;not sure&#39; otherwise.&quot;&quot;&quot;</span><span class="p">,</span> 
-                   <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pandas&quot;</span><span class="p">,</span> <span class="s2">&quot;scipy&quot;</span><span class="p">],</span> 
-                   <span class="n">input_host_path</span><span class="o">=</span><span class="s2">&quot;./input_data&quot;</span><span class="p">,</span>
-                   <span class="n">n_parallel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-                   <span class="n">n_iterative</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-                   <span class="n">final_touch</span><span class="o">=</span><span class="kc">True</span>
-                  <span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s2">&quot;gemma3:4b&quot;</span>
 </pre></div>
 </div>
 </div>
-<div class="cell_output docutils container">
-<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><script type="application/vnd.jupyter.widget-view+json">{"model_id": "db2c8bc2f2544a14a13d7de7d64e4128", "version_major": 2, "version_minor": 0}</script><div class="output text_html"></div></div>
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load the CSV file into a DataFrame</span>
-<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;input_data/data.csv&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sand_bob</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_code</span><span class="p">,</span> <span class="n">config_llms</span>
 
-<span class="c1"># Plot histograms for columns &quot;A&quot; and &quot;B&quot;</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">prompt_performance</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">prompt</span> <span class="ow">in</span> <span class="n">prompts</span><span class="p">:</span>
+    <span class="n">config_llms</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
 
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Histogram of Column A&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Values&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span>
+                  <span class="n">n_parallel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                  <span class="n">n_iterative</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                  <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                  <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="c1"># do not use a vision-model</span>
+                  <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="c1"># do not beautify the final notebook, we just need the result</span>
+    <span class="p">)</span>
 
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;B&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Histogram of Column B&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Values&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="s2">&quot;results:&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">final_result</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
 
-<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">correct</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">final_result</span><span class="p">)</span> <span class="o">==</span> <span class="n">ground_truth</span><span class="p">:</span>
+                <span class="n">correct</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="n">prompt_performance</span><span class="p">[</span><span class="n">prompt</span><span class="p">]</span> <span class="o">=</span> <span class="n">correct</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Success rate:&quot;</span><span class="p">,</span> <span class="n">prompt_performance</span><span class="p">[</span><span class="n">prompt</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/0d92a282efb9e7812ca3a6f2b3aaf5b533ee312210a45fa0275a932f79c5aac9.png" src="../_images/0d92a282efb9e7812ca3a6f2b3aaf5b533ee312210a45fa0275a932f79c5aac9.png" />
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Count the number of b&#39;s in blueberry. results: [&#39;Final resu&#39;, &#39;Final resu&#39;, &#39;Final Resu&#39;, &#39;Final resu&#39;, &#39;Final resu&#39;, &#39;Final Resu&#39;]
+Success rate: 0.0
+</pre></div>
+</div>
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Count the number of b&#39;s in blueberry and print the number only. results: [&#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;]
+Success rate: 1.0
+</pre></div>
+</div>
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>I would like to know the number of B in blueberry. results: [&#39;Final resu&#39;, &#39;Final resu&#39;, &#39;Final resu&#39;, &quot;2 &#39;B&#39;s&quot;, &#39;Final resu&#39;, &#39;0.0&#39;]
+Success rate: 0.0
+</pre></div>
 </div>
 </div>
+</div>
+<p>The prompt which performed best was:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">max</span><span class="p">(</span><span class="n">prompt_performance</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">prompt_performance</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&quot;Count the number of b&#39;s in blueberry and print the number only.&quot;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
 
     <script type="text/x-thebe-config">
     {
@@ -471,29 +490,30 @@
                 <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
+    <a class="left-prev"
+       href="benchmarking_llms.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Benchmarking LLMs using Sand-Bob</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="consistency_visualization.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Visualizing result consistency during iterative code improvement</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
 </div>
                 </footer>
               
             </div>
             
             
-              
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item"><div
-    id="pst-page-navigation-heading-2"
-    class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> Contents
-  </div>
-  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="simple visible nav section-nav flex-column">
-</ul>
-
-  </nav></div>
-
-</div></div>
               
             
           </div>

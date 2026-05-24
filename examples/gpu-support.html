@@ -173,10 +173,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="benchmarking_llms.html">Benchmarking LLMs using Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="benchmarking_prompts.html">Benchmarking prompts using Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consistency_visualization.html">Visualizing result consistency during iterative code improvement</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">GPU-support in Sand-Bob</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plot_sigmoid.html">Saving resulting files</a></li>
@@ -400,8 +402,183 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_html"></div><script type="application/vnd.jupyter.widget-view+json">{"model_id": "00cef0abd7d04e90aa9511e58ac6606e", "version_major": 2, "version_minor": 0}</script><div class="output text_html"><pre>GPU name:
-NVIDIA GeForce RTX 3050 Ti Laptop GPU</pre></div></div>
+<div class="output text_html"></div><div class="output text_html">
+<div id='sb-res-c62191d5b1ed41ab9100cc21c752d146' class='sb-result-root'>
+    
+<style>
+.sb-result-root {
+    --sb-border: #c8c8c8;
+    --sb-tab-bg: #f1f1f1;
+    --sb-tab-hover-bg: #dadada;
+    --sb-active-bg: #ffffff;
+    --sb-content-bg: #ffffff;
+    --sb-text: #2d2d2d;
+    --sb-muted-text: #4a4a4a;
+    --sb-shadow: rgba(0, 0, 0, 0.06);
+    --sb-active-top: #1e6fff;
+    margin-top: 8px;
+    color: var(--sb-text);
+    font-size: 12px;
+}
+
+.sb-history-bar {
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sb-history-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.sb-history-select {
+    min-width: 210px;
+    padding: 4px 8px;
+    border: 1px solid var(--sb-border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--sb-text);
+}
+
+.sb-history-panel {
+    margin: 0;
+}
+
+.sb-tabs {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.sb-tab-buttons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 6px 0 6px;
+    border-bottom: 1px solid var(--sb-border);
+    background: transparent;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+.sb-tab-btn {
+    appearance: none;
+    border: 1px solid var(--sb-border);
+    border-bottom: none;
+    margin: 0;
+    background: transparent;
+    color: var(--sb-muted-text);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: nowrap;
+    position: relative;
+    border-radius: 2px 2px 0 0;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.sb-tab-btn:hover {
+    background: transparent;
+    color: var(--sb-text);
+}
+
+.sb-tab-btn.active {
+    background: transparent;
+    color: var(--sb-text);
+    font-weight: 500;
+    border-color: var(--sb-border);
+    border-bottom-color: var(--sb-active-bg);
+    box-shadow: inset 0 2px 0 var(--sb-active-top);
+    z-index: 1;
+    margin-bottom: -1px;
+}
+
+.sb-tab-content {
+    padding: 14px;
+    background: transparent;
+    border-left: 1px solid var(--sb-border);
+    border-right: 1px solid var(--sb-border);
+    border-bottom: 1px solid var(--sb-border);
+}
+
+.sb-tab-panel {
+    display: none;
+}
+
+.sb-tab-panel.active {
+    display: block;
+}
+
+.sb-tab-content pre {
+    margin-top: 8px;
+    border: 1px solid #e7ebf2;
+    border-radius: 6px;
+}
+</style>
+
+    
+    <div class='sb-history-panel' data-index='0' style=''><div id='sb-res-c62191d5b1ed41ab9100cc21c752d146-tabs-0' class='sb-tabs'><div class='sb-tab-buttons'><button class='sb-tab-btn active' type='button' data-tab-index='0'>Output</button><button class='sb-tab-btn' type='button' data-tab-index='1'>Code</button><button class='sb-tab-btn' type='button' data-tab-index='2'>Details</button></div><div class='sb-tab-content'><div class='sb-tab-panel active' data-panel-index='0'><div><h4>Execution Output</h4><pre>GPU name (detected by CuPy):
+NVIDIA GeForce RTX 3050 Ti Laptop GPU</pre></div></div><div class='sb-tab-panel' data-panel-index='1'><div><pre style='background: white; overflow-x: auto; font-family: monospace;'><span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>import</span> cupy <span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>as</span> cp
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Get the current device ID</span>
+device_id <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> cp<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>cuda<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>Device<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span><span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>id</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Retrieve device properties (includes the GPU name)</span>
+props <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> cp<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>cuda<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>runtime<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>getDeviceProperties<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>device_id<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># The &#x27;name&#x27; field may be bytes; decode if needed</span>
+gpu_name <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> props<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>[</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;name&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>]</span>
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>if</span> <span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>isinstance</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>gpu_name<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> <span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>bytes</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>:</span>
+    gpu_name <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> gpu_name<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>decode<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Second‑last print: description</span>
+<span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>print</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;GPU name (detected by CuPy):&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Last print: the result only</span>
+<span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>print</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>gpu_name<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span></pre></div></div><div class='sb-tab-panel' data-panel-index='2'><div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'><li><strong>Execution reason:</strong> Initial execution</li><li><strong>Dependencies:</strong> cupy</li><li><strong>Final result:</strong> NVIDIA GeForce RTX 3050 Ti Laptop GPU</li><li><strong>Build Time:</strong> 252.99s</li><li><strong>Run Time:</strong> 6.05s</li><li><strong>Execution Time:</strong> 259.10s</li><li><strong>Total Time:</strong> 266.87s</li><li><strong>Files:</strong><ul><li>/display_output/notebook_executed.ipynb</li></ul></li></ul></div><div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>LLM backend</h5><table><thead><tr><th>Task</th><th>Function</th><th>Model</th></tr></thead><tbody><tr><td>Generate  code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Fix code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Determine dependencies</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Generate code  feedback</td><td>prompt_scadsai_llm</td><td>google/gemma-4-31B-it</td></tr><tr><td>Summarize code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Notebook conversion</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr></tbody></table></div></div></div></div>
+<script>
+(function() {
+  const root = document.getElementById('sb-res-c62191d5b1ed41ab9100cc21c752d146-tabs-0');
+  if (!root) return;
+    const buttonsBar = Array.from(root.children).find(function(child) {
+        return child.classList && child.classList.contains('sb-tab-buttons');
+    });
+    const content = Array.from(root.children).find(function(child) {
+        return child.classList && child.classList.contains('sb-tab-content');
+    });
+    if (!buttonsBar || !content) return;
+    const buttons = Array.from(buttonsBar.children).filter(function(child) {
+        return child.classList && child.classList.contains('sb-tab-btn');
+    });
+    const panels = Array.from(content.children).filter(function(child) {
+        return child.classList && child.classList.contains('sb-tab-panel');
+    });
+  const activate = function(index) {
+    buttons.forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
+    });
+    panels.forEach(function(panel) {
+      panel.classList.toggle('active', panel.dataset.panelIndex === String(index));
+    });
+  };
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      activate(btn.dataset.tabIndex);
+    });
+  });
+  activate(0);
+})();
+</script>
+</div>
+</div>
+
+</div><script type="application/vnd.jupyter.widget-view+json">{"model_id": "1f9f742af1d543eda8671ef1144496e8", "version_major": 2, "version_minor": 0}</script><div class="output text_html"></div></div>
 </div>
 <p>The expected resulting GPU name is stored in this variable:</p>
 <div class="cell docutils container">
@@ -425,28 +602,23 @@ NVIDIA GeForce RTX 3050 Ti Laptop GPU</pre></div></div>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>import cupy as cp
-import json
-import os
 
-# Get GPU properties (device 0)
-props = cp.cuda.runtime.getDeviceProperties(0)
+# Get the current device ID
+device_id = cp.cuda.Device().id
 
-# The name is returned as a bytes object; decode to string
-gpu_name = props[&quot;name&quot;].decode(&quot;utf-8&quot;)
+# Retrieve device properties (includes the GPU name)
+props = cp.cuda.runtime.getDeviceProperties(device_id)
 
-# ---- Output ----
-# Description (second‑last print)
-print(&quot;GPU name:&quot;)
+# The &#39;name&#39; field may be bytes; decode if needed
+gpu_name = props[&quot;name&quot;]
+if isinstance(gpu_name, bytes):
+    gpu_name = gpu_name.decode()
 
-# Final result (last print)
+# Second‑last print: description
+print(&quot;GPU name (detected by CuPy):&quot;)
+
+# Last print: the result only
 print(gpu_name)
-
-# ---- Save result to file ----
-# As required for a generated text/string, write it to the specified file.
-output_path = &quot;/display_output/final_result.txt&quot;
-os.makedirs(os.path.dirname(output_path), exist_ok=True)
-with open(output_path, &quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
-    f.write(gpu_name)
 </pre></div>
 </div>
 </div>

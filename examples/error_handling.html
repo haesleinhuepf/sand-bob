@@ -1,0 +1,946 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Error handling with Sand-Bob &#8212; Sand-Bob Notebooks</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'examples/error_handling';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Benchmarking LLMs using Sand-Bob" href="benchmarking_llms.html" />
+    <link rel="prev" title="Basic Sand-Bob usage: Code generation" href="basic_usage.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/sand-bob-logo.png" class="logo__image only-light" alt="Sand-Bob Notebooks - Home"/>
+    <img src="../_static/sand-bob-logo.png" class="logo__image only-dark pst-js-only" alt="Sand-Bob Notebooks - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../index.html">
+                    Sand-Bob
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Basics</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Error handling with Sand-Bob</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="benchmarking_llms.html">Benchmarking LLMs using Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="benchmarking_prompts.html">Benchmarking prompts using Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="consistency_visualization.html">Visualizing result consistency during iterative code improvement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gpu-support.html">GPU-support in Sand-Bob</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plot_sigmoid.html">Saving resulting files</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/haesleinhuepf/sand-bob" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/haesleinhuepf/sand-bob/issues/new?title=Issue%20on%20page%20%2Fexamples/error_handling.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/examples/error_handling.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Error handling with Sand-Bob</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="error-handling-with-sand-bob">
+<h1>Error handling with Sand-Bob<a class="headerlink" href="#error-handling-with-sand-bob" title="Link to this heading">#</a></h1>
+<p>As Sand-Bob handles code within sandbox containers, it cannot easily raise errors and exceptions as we are used to in Python. Instead, it returns error messages as strings.</p>
+<p>To demonstrate this, we ask for solving an unsolvable problem: opening a file that does not exist.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sand_bob</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_code</span><span class="p">,</span> <span class="n">config_scadsai_llm</span>
+
+<span class="n">config_scadsai_llm</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;load image.tif and show it&quot;</span><span class="p">,</span> 
+              <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;scikit-image&quot;</span><span class="p">,</span> <span class="s2">&quot;matplotlib&quot;</span><span class="p">],</span>
+              <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="c1"># supress error fixing</span>
+              <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="c1"># supress code feedback</span>
+              <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span> <span class="c1"># do not modify code when done</span>
+             <span class="p">)</span>
+<span class="n">result</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"></div><div class="output text_html">
+<div id='sb-res-9668380fdb1e433eb1274b290e6f6572' class='sb-result-root'>
+    
+<style>
+.sb-result-root {
+    --sb-border: #c8c8c8;
+    --sb-tab-bg: #f1f1f1;
+    --sb-tab-hover-bg: #dadada;
+    --sb-active-bg: #ffffff;
+    --sb-content-bg: #ffffff;
+    --sb-text: #2d2d2d;
+    --sb-muted-text: #4a4a4a;
+    --sb-shadow: rgba(0, 0, 0, 0.06);
+    --sb-active-top: #1e6fff;
+    margin-top: 8px;
+    color: var(--sb-text);
+    font-size: 12px;
+}
+
+.sb-history-bar {
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sb-history-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.sb-history-select {
+    min-width: 210px;
+    padding: 4px 8px;
+    border: 1px solid var(--sb-border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--sb-text);
+}
+
+.sb-history-panel {
+    margin: 0;
+}
+
+.sb-tabs {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.sb-tab-buttons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 6px 0 6px;
+    border-bottom: 1px solid var(--sb-border);
+    background: transparent;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+.sb-tab-btn {
+    appearance: none;
+    border: 1px solid var(--sb-border);
+    border-bottom: none;
+    margin: 0;
+    background: transparent;
+    color: var(--sb-muted-text);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: nowrap;
+    position: relative;
+    border-radius: 2px 2px 0 0;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.sb-tab-btn:hover {
+    background: transparent;
+    color: var(--sb-text);
+}
+
+.sb-tab-btn.active {
+    background: transparent;
+    color: var(--sb-text);
+    font-weight: 500;
+    border-color: var(--sb-border);
+    border-bottom-color: var(--sb-active-bg);
+    box-shadow: inset 0 2px 0 var(--sb-active-top);
+    z-index: 1;
+    margin-bottom: -1px;
+}
+
+.sb-tab-content {
+    padding: 14px;
+    background: transparent;
+    border-left: 1px solid var(--sb-border);
+    border-right: 1px solid var(--sb-border);
+    border-bottom: 1px solid var(--sb-border);
+}
+
+.sb-tab-panel {
+    display: none;
+}
+
+.sb-tab-panel.active {
+    display: block;
+}
+
+.sb-tab-content pre {
+    margin-top: 8px;
+    border: 1px solid #e7ebf2;
+    border-radius: 6px;
+}
+</style>
+
+    
+    <div class='sb-history-panel' data-index='0' style=''><div id='sb-res-9668380fdb1e433eb1274b290e6f6572-tabs-0' class='sb-tabs'><div class='sb-tab-buttons'><button class='sb-tab-btn active' type='button' data-tab-index='0'>Output</button><button class='sb-tab-btn' type='button' data-tab-index='1'>Code</button><button class='sb-tab-btn' type='button' data-tab-index='2'>Details</button></div><div class='sb-tab-content'><div class='sb-tab-panel active' data-panel-index='0'><div><h4>Error: FileNotFoundError</h4></div><pre>An error occurred while executing the following cell:
+------------------
+# Load and display a TIFF image, then save the figure.
+# Required libraries: scikit-image, matplotlib (already available).
+
+import pathlib
+from skimage import io
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------------
+# 1. Load the image
+# ------------------------------------------------------------------
+image_path = pathlib.Path(&quot;image.tif&quot;)
+if not image_path.is_file():
+    raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+
+# The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+img = io.imread(image_path)
+
+# ------------------------------------------------------------------
+# 2. Plot the image
+# ------------------------------------------------------------------
+plt.figure(figsize=(6, 6))
+# If grayscale, set cmap=&#x27;gray&#x27;
+if img.ndim == 2:
+    plt.imshow(img, cmap=&quot;gray&quot;)
+else:
+    # skimage loads RGB as (M, N, 3).  Matplotlib expects the same ordering.
+    plt.imshow(img)
+
+plt.axis(&quot;off&quot;)
+plt.title(f&quot;Image: {image_path.name}&quot;)
+
+# Show the plot (in a Jupyter notebook this will render the figure)
+plt.show()
+
+# ------------------------------------------------------------------
+# 3. Save the figure as PNG and SVG
+# ------------------------------------------------------------------
+output_dir = pathlib.Path(&quot;/display_output&quot;)
+png_path = output_dir / &quot;image_display.png&quot;
+svg_path = output_dir / &quot;image_display.svg&quot;
+
+plt.savefig(png_path, format=&quot;png&quot;, bbox_inches=&quot;tight&quot;)
+plt.savefig(svg_path, format=&quot;svg&quot;, bbox_inches=&quot;tight&quot;)
+
+# ------------------------------------------------------------------
+# 4. Output description and final result
+# ------------------------------------------------------------------
+print(&quot;Displayed the loaded image.&quot;)           # second‑last output (description)
+print(png_path)                               # last output – only the PNG filename
+------------------
+
+
+---------------------------------------------------------------------------
+FileNotFoundError                         Traceback (most recent call last)
+Cell In[1], line 13
+      9 # 1. Load the image
+     10 # ------------------------------------------------------------------
+     11 image_path = pathlib.Path(&quot;image.tif&quot;)
+     12 if not image_path.is_file():
+---&gt; 13     raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+     14 
+     15 # The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+     16 img = io.imread(image_path)
+
+FileNotFoundError: Image file not found: image.tif
+
+</pre></div><div class='sb-tab-panel' data-panel-index='1'><div><pre style='background: white; overflow-x: auto; font-family: monospace;'><span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Load and display a TIFF image, then save the figure.</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Required libraries: scikit-image, matplotlib (already available).</span>
+
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>import</span> pathlib
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>from</span> skimage <span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>import</span> io
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>import</span> matplotlib<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>pyplot <span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>as</span> plt
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># 1. Load the image</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+image_path <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> pathlib<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>Path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;image.tif&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>if</span> <span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>not</span> image_path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>is_file<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>:</span>
+    <span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>raise</span> <span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>FileNotFoundError</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>f&quot;Image file not found: {image_path}&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.</span>
+img <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> io<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>imread<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>image_path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># 2. Plot the image</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>figure<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>figsize<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-number-color, #080);'>6</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> <span style='color: var(--jp-mirror-editor-number-color, #080);'>6</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># If grayscale, set cmap=&#x27;gray&#x27;</span>
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>if</span> img<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>ndim <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>==</span> <span style='color: var(--jp-mirror-editor-number-color, #080);'>2</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>:</span>
+    plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>imshow<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>img<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> cmap<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;gray&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+<span style='color: var(--jp-mirror-editor-keyword-color, #008000); font-weight: 600;'>else</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>:</span>
+    <span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># skimage loads RGB as (M, N, 3).  Matplotlib expects the same ordering.</span>
+    plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>imshow<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>img<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>axis<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;off&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>title<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>f&quot;Image: {image_path.name}&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># Show the plot (in a Jupyter notebook this will render the figure)</span>
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>show<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># 3. Save the figure as PNG and SVG</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+output_dir <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> pathlib<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>Path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;/display_output&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+png_path <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> output_dir <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>/</span> <span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;image_display.png&quot;</span>
+svg_path <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span> output_dir <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>/</span> <span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;image_display.svg&quot;</span>
+
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>savefig<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>png_path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> <span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>format</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;png&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> bbox_inches<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;tight&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span>savefig<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>svg_path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> <span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>format</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;svg&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>,</span> bbox_inches<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;tight&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>
+
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># 4. Output description and final result</span>
+<span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># ------------------------------------------------------------------</span>
+<span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>print</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span><span style='color: var(--jp-mirror-editor-string-color, #BA2121);'>&quot;Displayed the loaded image.&quot;</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>           <span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># second‑last output (description)</span>
+<span style='color: var(--jp-mirror-editor-builtin-color, #0000FF);'>print</span><span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>(</span>png_path<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>)</span>                               <span style='color: var(--jp-mirror-editor-comment-color, #408080); font-style: italic;'># last output – only the PNG filename</span></pre></div></div><div class='sb-tab-panel' data-panel-index='2'><div><h4>Execution Details</h4><ul style='list-style: none; padding: 0;'><li><strong>Execution reason:</strong> Initial execution</li><li><strong>Dependencies:</strong> scikit-image, matplotlib</li><li><strong>Build Time:</strong> 0.52s</li><li><strong>Run Time:</strong> 5.80s</li><li><strong>Execution Time:</strong> 6.38s</li><li><strong>Total Time:</strong> 17.94s</li><li><strong>Traceback:</strong><pre style='padding: 10px; border-radius: 5px; color: red;'>An error occurred while executing the following cell:
+------------------
+# Load and display a TIFF image, then save the figure.
+# Required libraries: scikit-image, matplotlib (already available).
+
+import pathlib
+from skimage import io
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------------
+# 1. Load the image
+# ------------------------------------------------------------------
+image_path = pathlib.Path(&quot;image.tif&quot;)
+if not image_path.is_file():
+    raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+
+# The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+img = io.imread(image_path)
+
+# ------------------------------------------------------------------
+# 2. Plot the image
+# ------------------------------------------------------------------
+plt.figure(figsize=(6, 6))
+# If grayscale, set cmap=&#x27;gray&#x27;
+if img.ndim == 2:
+    plt.imshow(img, cmap=&quot;gray&quot;)
+else:
+    # skimage loads RGB as (M, N, 3).  Matplotlib expects the same ordering.
+    plt.imshow(img)
+
+plt.axis(&quot;off&quot;)
+plt.title(f&quot;Image: {image_path.name}&quot;)
+
+# Show the plot (in a Jupyter notebook this will render the figure)
+plt.show()
+
+# ------------------------------------------------------------------
+# 3. Save the figure as PNG and SVG
+# ------------------------------------------------------------------
+output_dir = pathlib.Path(&quot;/display_output&quot;)
+png_path = output_dir / &quot;image_display.png&quot;
+svg_path = output_dir / &quot;image_display.svg&quot;
+
+plt.savefig(png_path, format=&quot;png&quot;, bbox_inches=&quot;tight&quot;)
+plt.savefig(svg_path, format=&quot;svg&quot;, bbox_inches=&quot;tight&quot;)
+
+# ------------------------------------------------------------------
+# 4. Output description and final result
+# ------------------------------------------------------------------
+print(&quot;Displayed the loaded image.&quot;)           # second‑last output (description)
+print(png_path)                               # last output – only the PNG filename
+------------------
+
+
+---------------------------------------------------------------------------
+FileNotFoundError                         Traceback (most recent call last)
+Cell In[1], line 13
+      9 # 1. Load the image
+     10 # ------------------------------------------------------------------
+     11 image_path = pathlib.Path(&quot;image.tif&quot;)
+     12 if not image_path.is_file():
+---&gt; 13     raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+     14 
+     15 # The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+     16 img = io.imread(image_path)
+
+FileNotFoundError: Image file not found: image.tif
+
+</pre></li></ul></div><div style='margin:10px 0 14px 0;'><h5 style='margin:0 0 8px 0;'>LLM backend</h5><table><thead><tr><th>Task</th><th>Function</th><th>Model</th></tr></thead><tbody><tr><td>Generate  code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Fix code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Determine dependencies</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Generate code  feedback</td><td>prompt_scadsai_llm</td><td>google/gemma-4-31B-it</td></tr><tr><td>Summarize code</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr><tr><td>Notebook conversion</td><td>prompt_scadsai_llm</td><td>openai/gpt-oss-120b</td></tr></tbody></table></div></div></div></div>
+<script>
+(function() {
+  const root = document.getElementById('sb-res-9668380fdb1e433eb1274b290e6f6572-tabs-0');
+  if (!root) return;
+    const buttonsBar = Array.from(root.children).find(function(child) {
+        return child.classList && child.classList.contains('sb-tab-buttons');
+    });
+    const content = Array.from(root.children).find(function(child) {
+        return child.classList && child.classList.contains('sb-tab-content');
+    });
+    if (!buttonsBar || !content) return;
+    const buttons = Array.from(buttonsBar.children).filter(function(child) {
+        return child.classList && child.classList.contains('sb-tab-btn');
+    });
+    const panels = Array.from(content.children).filter(function(child) {
+        return child.classList && child.classList.contains('sb-tab-panel');
+    });
+  const activate = function(index) {
+    buttons.forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tabIndex === String(index));
+    });
+    panels.forEach(function(panel) {
+      panel.classList.toggle('active', panel.dataset.panelIndex === String(index));
+    });
+  };
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      activate(btn.dataset.tabIndex);
+    });
+  });
+  activate(0);
+})();
+</script>
+</div>
+</div>
+
+</div><div class="output text_html"></div></div>
+</div>
+<p>The error message can also be accessed like this:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span><span class="o">.</span><span class="n">error</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;FileNotFoundError&#39;
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">traceback</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>An error occurred while executing the following cell:
+------------------
+# Load and display a TIFF image, then save the figure.
+# Required libraries: scikit-image, matplotlib (already available).
+
+import pathlib
+from skimage import io
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------------
+# 1. Load the image
+# ------------------------------------------------------------------
+image_path = pathlib.Path(&quot;image.tif&quot;)
+if not image_path.is_file():
+    raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+
+# The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+img = io.imread(image_path)
+
+# ------------------------------------------------------------------
+# 2. Plot the image
+# ------------------------------------------------------------------
+plt.figure(figsize=(6, 6))
+# If grayscale, set cmap=&#39;gray&#39;
+if img.ndim == 2:
+    plt.imshow(img, cmap=&quot;gray&quot;)
+else:
+    # skimage loads RGB as (M, N, 3).  Matplotlib expects the same ordering.
+    plt.imshow(img)
+
+plt.axis(&quot;off&quot;)
+plt.title(f&quot;Image: {image_path.name}&quot;)
+
+# Show the plot (in a Jupyter notebook this will render the figure)
+plt.show()
+
+# ------------------------------------------------------------------
+# 3. Save the figure as PNG and SVG
+# ------------------------------------------------------------------
+output_dir = pathlib.Path(&quot;/display_output&quot;)
+png_path = output_dir / &quot;image_display.png&quot;
+svg_path = output_dir / &quot;image_display.svg&quot;
+
+plt.savefig(png_path, format=&quot;png&quot;, bbox_inches=&quot;tight&quot;)
+plt.savefig(svg_path, format=&quot;svg&quot;, bbox_inches=&quot;tight&quot;)
+
+# ------------------------------------------------------------------
+# 4. Output description and final result
+# ------------------------------------------------------------------
+print(&quot;Displayed the loaded image.&quot;)           # second‑last output (description)
+print(png_path)                               # last output – only the PNG filename
+------------------
+
+
+---------------------------------------------------------------------------
+FileNotFoundError                         Traceback (most recent call last)
+Cell In[1], line 13
+      9 # 1. Load the image
+     10 # ------------------------------------------------------------------
+     11 image_path = pathlib.Path(&quot;image.tif&quot;)
+     12 if not image_path.is_file():
+---&gt; 13     raise FileNotFoundError(f&quot;Image file not found: {image_path}&quot;)
+     14 
+     15 # The image may be grayscale (2‑D) or RGB (3‑D).  `io.imread` handles both.
+     16 img = io.imread(image_path)
+
+FileNotFoundError: Image file not found: image.tif
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./examples"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="basic_usage.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Basic Sand-Bob usage: Code generation</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="benchmarking_llms.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Benchmarking LLMs using Sand-Bob</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Robert Haase
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
