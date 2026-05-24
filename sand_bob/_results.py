@@ -525,11 +525,11 @@ class ExecutionResult:
         tabs = [
             ("Output", self._output_html()),
             ("Code", self._code_html()),
+            ("Prompt", self._prompt_html()),
             ("Details", self._details_html()),
         ]
         if config.debug:
             tabs += [
-                ("Prompt", self._prompt_html()),
                 ("StdOut", self._stdout_html()),
                 ("StdErr", self._stderr_html()),
             ]
