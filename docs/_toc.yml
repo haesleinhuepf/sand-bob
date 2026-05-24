@@ -9,9 +9,13 @@ parts:
       - file: examples/error_handling
   - caption: "Advanced"
     chapters:
-      - file: examples/benchmarking_llms
-      - file: examples/benchmarking_prompts
       - file: examples/consistency_visualization
       - file: examples/datagen_significance_test
       - file: examples/gpu-support
       - file: examples/plot_sigmoid
+  - caption: "Use cases"
+    chapters:
+      - file: examples/benchmarking_llms
+      - file: examples/benchmarking_prompts
+      - file: examples/image_segmentation
+      - file: examples/timelapse_analysis
