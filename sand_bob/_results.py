@@ -52,8 +52,11 @@ class ExecutionResult:
         from io import BytesIO
         import base64
 
-        self._create_widget()
-        display(self.widget)
+        html = self._render_tabs_and_history_widget()
+
+        if not self.render_inline:
+            display(HTML(html))
+
         if self.save_notebook_output is not None:
             display(self.save_notebook_output)
 
@@ -61,7 +64,7 @@ class ExecutionResult:
             return ""
 
 
-        return self._html_output()
+        return html + self._html_output()
     
     def _html_output(self):
         
@@ -78,54 +81,54 @@ class ExecutionResult:
         return parsed_output
 
 
-    def _create_widget(self, include_chain_selector: bool = True):
-            """Create the main interface using HTML tabs and optional history selector."""
-            # Keep ipywidgets only for the save notebook section.
-            self.save_notebook_output = None
-            if self.files and '/display_output/notebook_executed.ipynb' in self.files:
-                    self.save_notebook_output = widgets.Output()
-                    self._populate_save_notebook()
+    def _render_tabs_and_history_widget(self, include_history_selector: bool = True):
+        """Create the main interface using HTML tabs and optional history selector."""
+        # Keep ipywidgets only for the save notebook section.
+        self.save_notebook_output = None
+        if self.files and '/display_output/notebook_executed.ipynb' in self.files:
+                self.save_notebook_output = widgets.Output()
+                self._populate_save_notebook()
 
-            chain: List[ExecutionResult] = [self]
-            if include_chain_selector:
-                    chain = []
-                    cursor = self
-                    seen = set()
-                    while cursor is not None:
-                            cursor_id = id(cursor)
-                            if cursor_id in seen:
-                                    break
-                            seen.add(cursor_id)
-                            chain.append(cursor)
-                            cursor = cursor.former_result
-                    chain = list(reversed(chain))
+        chain: List[ExecutionResult] = [self]
+        if include_history_selector:
+            chain = []
+            cursor = self
+            seen = set()
+            while cursor is not None:
+                cursor_id = id(cursor)
+                if cursor_id in seen:
+                        break
+                seen.add(cursor_id)
+                chain.append(cursor)
+                cursor = cursor.former_result
+            chain = list(reversed(chain))
 
-            root_id = f"sb-res-{uuid.uuid4().hex}"
-            sections_html = []
-            options_html = []
+        root_id = f"sb-res-{uuid.uuid4().hex}"
+        sections_html = []
+        options_html = []
 
-            for i, result in enumerate(chain):
-                    label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
-                    options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
-                    section_style = "" if i == len(chain) - 1 else "display:none;"
-                    sections_html.append(
-                            f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
-                            f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
-                    )
+        for i, result in enumerate(chain):
+                label = f"Result {i+1} (exit {getattr(result, 'exit_code', 'n/a')})"
+                options_html.append(f"<option value='{i}'>{html.escape(label)}</option>")
+                section_style = "" if i == len(chain) - 1 else "display:none;"
+                sections_html.append(
+                        f"<div class='sb-history-panel' data-index='{i}' style='{section_style}'>"
+                        f"{result._build_tabs_html(root_id=f'{root_id}-tabs-{i}')}</div>"
+                )
 
-            history_selector_html = ""
-            if include_chain_selector and len(chain) > 1:
-                    history_selector_html = (
-                            f"<div class='sb-history-bar'>"
-                            f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
-                            f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
-                            f"</div>"
-                    )
+        history_selector_html = ""
+        if include_history_selector and len(chain) > 1:
+                history_selector_html = (
+                        f"<div class='sb-history-bar'>"
+                        f"<label for='{root_id}-history' class='sb-history-label'>History:</label>"
+                        f"<select id='{root_id}-history' class='sb-history-select'>{''.join(options_html)}</select>"
+                        f"</div>"
+                )
 
-            script_html = ""
-            if include_chain_selector and len(chain) > 1:
-                    default_index = len(chain) - 1
-                    script_html = f"""
+        script_html = ""
+        if include_history_selector and len(chain) > 1:
+                default_index = len(chain) - 1
+                script_html = f"""
 <script>
 (function() {{
     const root = document.getElementById('{root_id}');
@@ -147,7 +150,7 @@ class ExecutionResult:
 </script>
 """
 
-            html_content = f"""
+        html_content = f"""
 <div id='{root_id}' class='sb-result-root'>
     {ExecutionResult._tabs_css()}
     {history_selector_html}
@@ -155,7 +158,7 @@ class ExecutionResult:
 </div>
 {script_html}
 """
-            self.widget = HTML(html_content)
+        return html_content
 
     @staticmethod
     def _tabs_css() -> str:
@@ -785,7 +788,7 @@ class ExecutionResultList:
         self._create_tabbed_interface()
     
     def _create_tabbed_interface(self):
-        """Create an HTML tab interface (ipywidgets-free)."""
+        """Create an HTML tab interface"""
         tab_titles = ["Overview"]
         tab_panels = [self._populate_overview()]
 
@@ -793,19 +796,14 @@ class ExecutionResultList:
             if result is None:
                 continue
 
-            temp = result.render_inline if hasattr(result, 'render_inline') else True
-            result.render_inline = False
-            result._create_widget(include_chain_selector=False)
+            tab_content = result._render_tabs_and_history_widget()
 
-            if hasattr(result, 'widget'):
-                tab_content = result.widget.data if hasattr(result.widget, 'data') else str(result.widget)
-                tab_panels.append(tab_content)
-                if i < len(self.tab_names):
-                    tab_titles.append(self.tab_names[i])
-                else:
-                    tab_titles.append(f"Result {i + 1}")
+            tab_panels.append(tab_content)
+            if i < len(self.tab_names):
+                tab_titles.append(self.tab_names[i])
+            else:
+                tab_titles.append(f"Result {i + 1}")
 
-            result.render_inline = temp
 
         root_id = f"sb-list-{uuid.uuid4().hex}"
         buttons = []
