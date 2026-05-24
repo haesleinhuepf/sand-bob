@@ -6,9 +6,11 @@ parts:
       - file: installation
       - file: examples/alice
       - file: examples/basic_usage
+      - file: examples/error_handling
   - caption: "Advanced"
     chapters:
       - file: examples/benchmarking_llms
+      - file: examples/benchmarking_prompts
       - file: examples/consistency_visualization
       - file: examples/datagen_significance_test
       - file: examples/gpu-support

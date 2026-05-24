@@ -76,12 +76,10 @@ def populate_save_notebook(
 
     result_entries = normalize_result_entries(result_source)
     if not result_entries:
-        print("No notebooks found in the provided result source.")
         return None
 
     has_any_notebook = any(get_available_notebooks(result) for _, result in result_entries)
     if not has_any_notebook:
-        print("No notebooks found in the provided result source2.")
         return None
 
     output = save_notebook_output or widgets.Output()
@@ -620,7 +618,10 @@ class ExecutionResult:
         display(HTML(self._output_html()))
 
     def _output_html(self) -> str:
-        return "<div><h4>Execution Output</h4>" + self._html_output() + "</div>"
+        if self.error is not None:
+            return f"<div><h4>Error: {html.escape(self.error)}</h4></div><pre>{html.escape(self.traceback or '')}</pre>"
+        else:
+            return "<div><h4>Execution Output</h4>" + self._html_output() + "</div>"
 
     def _stdout_html(self) -> str:
         if self.stdout:

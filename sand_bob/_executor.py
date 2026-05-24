@@ -114,6 +114,7 @@ def execute_notebook(notebook_json: Optional[str] = None,
         import re
         match = re.search(r"^([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception)):", res.stdout, re.MULTILINE)
         res.error = match.group(1) if match else None
+        res.traceback = res.stdout
 
     return res
 
@@ -412,7 +413,7 @@ class CodeExecutor:
                     except ValueError:
                         pass
 
-        if result.final_result in result.objects:
+        if isinstance(result.final_result, str) and result.final_result in result.objects:
             key = result.final_result
             if key.endswith(".svg") and key[:-4] + ".png" in result.objects:
                 key = key[:-4] + ".png"
