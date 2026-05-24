@@ -6,13 +6,11 @@ Sand-Bob is a tool for LLM-based code generation and docker-sandboxed execution 
 
 Note: This is research software under active development. The API may break with every new release.
 
-
-
 ## `%%alice` magic command
 
 With minimal boilerplate code, you can ask `%%alice` to generate code for you. If it's good, you can save it as a Jupyter notebook afterwards.
 
-![](alice.png)
+![](alice_creative_plotting.png)
 
 ## `generate_code` to handle AI-generated code and execution results as variables
 
