@@ -6,7 +6,7 @@ Sand-Bob is a tool for LLM-based code generation and docker-sandboxed execution 
 
 Note: This is research software under active development. The API may break with every new release.
 
-![](https://haesleinhuepf.github.io/sand-bob/_images/alice.png)
+![](https://haesleinhuepf.github.io/sand-bob/_images/alice_creative_plotting.png)
 
 ## Documentation
 
