@@ -582,7 +582,7 @@ def objects_identical(object1, object2):
         return json1 == json2
     except (TypeError, ValueError):
         # If objects are not JSON serializable, fall back to direct comparison
-        return object1 == object2
+        return str(object1) == str(object2)
     
 
 def remove_bracketed_markdown_fences(text):
