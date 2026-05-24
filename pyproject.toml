@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sand-bob"
-version = "0.1.1"
+version = "0.2.0"
 description = "LLM-based code generation and docker-sandboxed execution in a loop in parallel"
 readme = "README.md"
 license = {file = "LICENSE"}
