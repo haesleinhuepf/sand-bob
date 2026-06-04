@@ -19,3 +19,4 @@ parts:
       - file: examples/benchmarking_prompts
       - file: examples/image_segmentation
       - file: examples/timelapse_analysis
+      - file: examples/object-tracking
