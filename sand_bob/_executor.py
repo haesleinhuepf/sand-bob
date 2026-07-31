@@ -333,7 +333,11 @@ class CodeExecutor:
                 import json
                 result.objects[filename] = [json.loads(line) for line in content.decode("utf-8").splitlines()]
             elif filename.endswith(".txt") or filename.endswith(".svg"):
-                result.objects[filename] = content.decode("utf-8")
+                try:
+                    result.objects[filename] = content.decode("utf-8")
+                except Exception as e:
+                    # warnings.warn(f"Error reading text file {filename}: {e} \n\n {str(content)}")
+                    result.objects[filename] = content
             else:
                 result.objects[filename] = content
 
