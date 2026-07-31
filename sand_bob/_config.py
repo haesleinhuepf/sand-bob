@@ -302,6 +302,19 @@ def config_ollama(model: str="qwen2.5-coder:3b"):
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
 
 
+def config_strix(model: str="qwen3.5:35b"):
+    from ._config import config
+    from functools import partial
+    from ._endpoints import prompt_ollama
+    
+    config.prompt_function_determine_dependencies = partial(prompt_ollama, model=model)
+    config.prompt_function_generate_code = partial(prompt_ollama, model=model)
+    config.prompt_function_fix_code = partial(prompt_ollama, model=model)
+    config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
+    config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
+    config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
+
+
 def config_llms(model: str="gemma3:4b",
     vision_model: str="gemma3:4b",
     base_url: str="http://localhost:11434/v1",

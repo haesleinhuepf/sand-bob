@@ -9,10 +9,10 @@ except (ImportError, NameError):
     alice = None
     initialize = None
 
-from ._config import config, config_openai, config_kisski, config_ollama, config_scadsai_llm, config_kiara, config_llms
+from ._config import config, config_openai, config_kisski, config_ollama, config_scadsai_llm, config_kiara, config_llms, config_strix
 
 __version__ = "0.2.0"
-__all__ = ["ExecutionResult", "execute", "config", "generate_code", "config_openai", "config_kisski", "config_ollama", "config_scadsai_llm", "config_kiara", "config_llms"] 
+__all__ = ["ExecutionResult", "execute", "config", "generate_code", "config_openai", "config_kisski", "config_ollama", "config_scadsai_llm", "config_kiara", "config_llms", "config_strix"] 
 
 WHITELIST_DEPENDENCIES = ["pandas", "matplotlib", "seaborn", "scipy", "numpy", 
                           "scikit-learn", "scikit-image", "tqdm",
