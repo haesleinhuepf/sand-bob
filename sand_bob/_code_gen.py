@@ -459,7 +459,7 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
     return res
 
 @parallel
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, gpu_support=False):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, gpu_support=False, silent=False):
     """Generate, execute, review, and iteratively improve task-specific code.
 
     Parameters
@@ -494,7 +494,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     from ._executor import CodeExecutor
     import time
 
-    status_display = StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*2, status_text="Initializing...")
+    status_display = None if silent else StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*2, status_text="Initializing...")
 
     start_time = time.time()
 
@@ -516,9 +516,11 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         #display(res)
 
         # code inspection and feedback
-        status_display.update(f"Generating feedback...")
+        if status_display is not None:
+            status_display.update(f"Generating feedback...")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
-        status_display.add_progress(1)
+        if status_display is not None:
+            status_display.add_progress(1)
 
         
         res.feedback = feedback
@@ -550,7 +552,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     # Apply final touch to make the code look nice in a notebook
     if final_touch:
-        status_display.update("Final touch")
+        if status_display is not None:
+            status_display.update("Final touch")
         for _ in range(3):
             ft_res = python_code_to_beautiful_notebook(res.code, original_task=prompt, dependencies=res.dependencies, input_host_path=input_host_path, input_container_path=input_container_path, executor=executor, gpu_support=gpu_support)
             success = objects_identical(res.final_result, ft_res.final_result)
@@ -564,7 +567,8 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
             # add a note to res, that final_touch failed
             pass
 
-    status_display.update("")
+    if status_display is not None:
+        status_display.update("")
     res.total_time = time.time() - start_time
     res.n_codefix_attempts = n_a + 1
     
@@ -709,15 +713,35 @@ def generate_code(*args, **kwargs):
 
     Parameters
     ----------
-    *args
-        Positional arguments forwarded to generate_and_optimize_code.
-    **kwargs
-        Keyword arguments forwarded to generate_and_optimize_code.
+    prompt : str
+        Task description used to generate and optimize code.
+    dependencies : list[str], optional
+        Allowed dependency list for generation and execution.
+    input_host_path : str, optional
+        Host path to mount as input data.
+    input_container_path : str, default "/input_data"
+        Container path where input data is mounted.
+    n_codefix_attempts : int, default 2
+        Maximum repair attempts per generation iteration.
+    n_feedback_iterations : int, default 1
+        Maximum number of feedback-driven optimization rounds.
+    final_touch : bool, default True
+        Whether to convert final code into a more readable notebook format.
+    gpu_support : bool, default False
+        Whether to enable GPU-capable execution.
+    n_iterative: int, default 1
+        Number of times to run the entire generate-and-optimize process in parallel.
+    n_parallel: int, default 1
+        Number of parallel executions to run in each iteration.
+    silent : bool, default False
+        When True, disables progress/status output by forcing
+        ``status_display`` to ``None``.
 
     Returns
     -------
-    ExecutionResult or ExecutionResultList
-        Wrapped execution result.
+    ExecutionResult or list[ExecutionResult]
+        Final optimized execution result, or a list when called with n_iterative > 1 or n_parallel > 1.
+
     """
     from ._results import ExecutionResultList
     result = generate_and_optimize_code(*args, **kwargs)
