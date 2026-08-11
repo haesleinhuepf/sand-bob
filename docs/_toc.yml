@@ -10,6 +10,7 @@ parts:
   - caption: "Advanced"
     chapters:
       - file: examples/consistency_visualization
+      - file: examples/dominant_result.ipynb
       - file: examples/datagen_significance_test
       - file: examples/gpu-support
       - file: examples/plot_sigmoid
