@@ -13,6 +13,8 @@ class Config:
         self.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model="google/gemma-4-31B-it")
         self.prompt_function_summarize_code = prompt_scadsai_llm
         self.prompt_function_notebook_conversion = prompt_scadsai_llm
+        self.prompt_function_text_to_text = prompt_scadsai_llm
+
         self.prompt_template_code_generation = """
 You are an expert in python programming. You have a list of framework constraints which you MUST follow.
 Your task is to generate a fully functional code snippet that will be used to fulfill the prompt.
@@ -181,6 +183,62 @@ Ignore file loading, visualization, type-conversion, and other peripheral code a
 Make it very concise, give only names of algorithms. Do not explain or describe algorithms.
 """
 
+        self.prompt_template_extract_result_spec = """
+I will give you a prompt that will serve generating some code. 
+Your task is to write a short specification of the final result the code should produce.
+
+Prompt:
+```
+{prompt}
+```
+
+Ignore implementation details and focus on the result of the code.
+Also ignore meaning of potential results.
+What type should the result be and in which range do you expect values? Is it a numeric result, a list, dictionary, table, image, string, ...?
+If it's a categorical result, make sure to specify all possible categories.
+Do not invent anything. Just focus on what is defined in the prompt above.
+Specify in one short sentence what the final result should be. The sentence should start with: "We expect a value that ..."
+"""
+
+        self.prompt_template_check_result = """
+Given a specification of a value, write a python function that can check if a given value fulfills the specification.
+
+## Specification
+
+{result_spec}
+
+## Code
+
+The python function you write has to have exactly this signature:
+```
+def check_result(value:Any)->bool:
+```
+In case it returns False, it should also print what's wrong with the value.
+
+Now write the complete code of this function (including import statements).
+Write Python code only, no explanations.
+"""
+
+        self.code_template_check_result = """
+import json
+
+{code}
+
+file_path = "input_data/result.json"
+
+# Load it back from disk
+with open(file_path, "r") as f:
+    result_loaded = json.load(f)
+
+if check_result(result_loaded):
+    print("\\n\\nOK{current_datetime_str}")
+"""
+
+
+
+
+
+
     @staticmethod
     def _get_callable_name_and_model(prompt_callable):
         if isinstance(prompt_callable, partial):
@@ -250,6 +308,7 @@ def config_openai(model: str="gpt-5-mini"):
     config.prompt_function_generate_code_feedback = partial(prompt_openai, model=model)
     config.prompt_function_summarize_code = partial(prompt_openai, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_openai, model=model)
+    config.prompt_function_text_to_text = partial(prompt_openai, model=model)
 
 def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-vl-72b-instruct"):
     from ._config import config
@@ -262,6 +321,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_generate_code_feedback = partial(prompt_kisski, model=vision_model)
     config.prompt_function_summarize_code = partial(prompt_kisski, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
+    config.prompt_function_text_to_text = partial(prompt_kisski, model=model)
 
 def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-31B-it"):
     from ._config import config
@@ -274,6 +334,7 @@ def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="googl
     config.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model=vision_model)
     config.prompt_function_summarize_code = partial(prompt_scadsai_llm, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model=model)
+    config.prompt_function_text_to_text = partial(prompt_scadsai_llm, model=model)
 
 
 def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str="vllm-llama-4-scout-17b-16e-instruct", notebook_conversion_model: str="vllm-llama-3-3-nemotron-super-49b-v1"):
@@ -287,6 +348,7 @@ def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str
     config.prompt_function_generate_code_feedback = partial(prompt_kiara, model=vision_model)
     config.prompt_function_summarize_code = partial(prompt_kiara, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_kiara, model=notebook_conversion_model)
+    config.prompt_function_text_to_text = partial(prompt_kiara, model=model)
 
 
 def config_ollama(model: str="qwen2.5-coder:3b"):
@@ -300,6 +362,7 @@ def config_ollama(model: str="qwen2.5-coder:3b"):
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
     config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
+    config.prompt_function_text_to_text = partial(prompt_ollama, model=model)
 
 
 def config_strix(model: str="qwen3.5:35b"):
@@ -313,7 +376,7 @@ def config_strix(model: str="qwen3.5:35b"):
     config.prompt_function_generate_code_feedback = partial(prompt_ollama, model=model)
     config.prompt_function_summarize_code = partial(prompt_ollama, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_ollama, model=model)
-
+    config.prompt_function_text_to_text = partial(prompt_ollama, model=model)
 
 def config_llms(model: str="gemma3:4b",
     vision_model: str="gemma3:4b",
@@ -327,4 +390,5 @@ def config_llms(model: str="gemma3:4b",
     config.prompt_function_generate_code_feedback = partial(prompt, model=vision_model, base_url=base_url, api_key=api_key)
     config.prompt_function_summarize_code = partial(prompt, model=model, base_url=base_url, api_key=api_key)
     config.prompt_function_notebook_conversion = partial(prompt, model=model, base_url=base_url, api_key=api_key)
+    config.prompt_function_text_to_text = partial(prompt, model=model, base_url=base_url, api_key=api_key)
 

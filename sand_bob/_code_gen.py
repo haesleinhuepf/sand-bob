@@ -125,7 +125,7 @@ def fix_error_in_code(code, stdout, stderr):
     return extract_code(response), prompt
 
 
-def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, gpu_support=False):
+def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, status_display=None, executor=None, gpu_support=False, reason="Initial execution"):
     """Execute code and iteratively repair dependency and runtime failures.
 
     Parameters
@@ -161,7 +161,6 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
 
     dependencies = dependencies.copy()
     former_result = None
-    reason = "Initial execution"
 
     for n_a in range(n_codefix_attempts + 1):
    
@@ -234,7 +233,7 @@ def run_auto_fix(code, prompt=None, dependencies=[], input_host_path=None, input
 
     return result
 
-def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None, gpu_support=False):
+def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=3, status_display=None, executor=None, gpu_support=False, reason="Initial execution"):
     """Generate code for a task and execute it with automatic repairs.
 
     Parameters
@@ -298,7 +297,11 @@ def generate_run(prompt, prefix_code=None, suffix_code=None, dependencies=[], in
                           dependencies=dependencies, 
                           input_host_path=input_host_path, 
                           input_container_path=input_container_path,
-                          n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, gpu_support=gpu_support)
+                          n_codefix_attempts=n_codefix_attempts, 
+                          status_display=status_display, 
+                          executor=executor, 
+                          gpu_support=gpu_support,
+                          reason=reason)
     #result.prompt = system_prompt + "\n\n" + prompt
     
     return result
@@ -358,6 +361,52 @@ If there are no improvements, simply say '{GOOD_CODE}' by the end.
     res = config.prompt_function_generate_code_feedback(messages)
     #print(f"Prompt time taken (generate_code_feedback): {time.time() - start_time:.2f}s")
     return res
+
+
+def generate_result_check_code(prompt:str):
+    from ._config import config
+    from ._utilities import extract_code
+    # extract result specification
+    result_spec = config.prompt_function_text_to_text(config.prompt_template_extract_result_spec.format(prompt=prompt))
+
+    # turn spec into executable code
+    response = config.prompt_function_generate_code(config.prompt_template_check_result.format(result_spec=result_spec))
+    return extract_code(response)
+    
+
+def generate_result_feedback(result, dependencies, check_code:str) -> str:
+    import json
+    import tempfile
+    import os
+    from ._executor import execute
+    from ._config import config
+    # Create a temporary directory and file path
+    temp_dir = tempfile.gettempdir()
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_path = os.path.join(temp_dir, "result.json")
+        
+        # Save result_spec to disk as JSON
+        with open(file_path, "w") as f:
+            json.dump(result, f)
+
+        #print("Result:", type(result.final_result), result.final_result)
+        
+        from datetime import datetime
+        
+        current_datetime_str = str(datetime.now())
+        
+        wrapper_code = config.code_template_check_result.format(
+            code=check_code,
+            current_datetime_str=current_datetime_str)
+    
+        check_result = execute(wrapper_code, dependencies=dependencies, input_host_path=temp_dir)
+
+    if check_result.final_result == "OK" + current_datetime_str:
+        return "OK"
+    else:
+        return check_result.final_result # error message / type hints
+
 
 
 def code_and_outputs_to_messages(code: str, list_of_objects, prefix, suffix):
@@ -453,13 +502,12 @@ def incorporate_feedback(code, prompt, feedback, dependencies=[], input_host_pat
         code=code,
         feedback=feedback,
     )
-    res = generate_run(generation_prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
-    res.reason = "Executing code after incorporating feedback"
+    res = generate_run(generation_prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support, reason = "Executing code after incorporating feedback")
     
     return res
 
 @parallel
-def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, gpu_support=False, silent=False):
+def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, input_container_path="/input_data", n_codefix_attempts=2, n_feedback_iterations=1, final_touch=True, gpu_support=False, check_results=True, silent=False):
     """Generate, execute, review, and iteratively improve task-specific code.
 
     Parameters
@@ -480,6 +528,10 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         Whether to convert final code into a more readable notebook format.
     gpu_support : bool, default False
         Whether to enable GPU-capable execution.
+    check_results: bool, default True
+        Whether to check the final result against an AI-generated result specification.
+    silent : bool, default False
+        When True, disables progress/status display.
 
     Returns
     -------
@@ -493,6 +545,15 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
     from ._statusdisplay import StatusDisplay
     from ._executor import CodeExecutor
     import time
+    import warnings
+
+    # check inputs
+    if n_feedback_iterations < 1 and check_results:
+        warnings.warn("To use check_results=True set n_feedback_iterations to at least 1, as checking results is part of the feedback generation.")
+    if "final result" not in prompt.lower():
+        warnings.warn("The prompt does not mention 'final result'. It is recommended to specify the expected final result as precisely as possible in the prompt to guide the model to generate code that meets your requirements.")   
+
+
 
     status_display = None if silent else StatusDisplay(total_steps=(n_feedback_iterations+1)*(n_codefix_attempts+1)*2, status_text="Initializing...")
 
@@ -503,7 +564,10 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
 
     # code generation and execution
     former_result = None
-    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, gpu_support=gpu_support)
+    res = generate_run(prompt, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, n_codefix_attempts=n_codefix_attempts, status_display=status_display, executor=executor, gpu_support=gpu_support, reason = "Initial code generation and execution")
+
+    if check_results:
+        check_code = generate_result_check_code(prompt)
     
     n_a = 0
     for n_a in range(n_feedback_iterations):
@@ -519,9 +583,17 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         if status_display is not None:
             status_display.update(f"Generating feedback...")
         feedback = generate_code_feedback(res.code, res.outputs, purpose=prompt)
+
+        if check_results and res.error is None: # only check results if there was no execution error
+            result_feedback = generate_result_feedback(res.final_result, dependencies=res.dependencies, check_code=check_code)
+            if result_feedback == "OK":
+                feedback += "\n\nImportant!\nThe final result matches the expected result specification. Make sure to keep the result as it is."
+            else:
+                feedback = feedback.replace(GOOD_CODE, "")
+                feedback += f"\n\nImportant!\nThe final result does not match the expected result specification. {result_feedback}. Please fix the code accordingly."
+
         if status_display is not None:
             status_display.add_progress(1)
-
         
         res.feedback = feedback
 
@@ -535,9 +607,11 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
         # incorporating feedback
         #status_display.update(f"Incorporating feedback and regenerating code... {status_text}", progress / max_progress * 100)
         res = incorporate_feedback(res.code, prompt, feedback, dependencies=dependencies, input_host_path=input_host_path, input_container_path=input_container_path, status_display=status_display, executor=executor, gpu_support=gpu_support)
-        res.reason = "Exe"
+        res.reason = "Execution after incorporating feedback"
 
         #print("len code (aft):", len(res.code))
+
+        prefix_former_result(res, former_result)
 
         if res.code == code_before:
             #print("Code did not change. Stopping.")
@@ -545,7 +619,7 @@ def generate_and_optimize_code(prompt, dependencies=[], input_host_path=None, in
                 status_display.add_progress((n_feedback_iterations - 1 - n_a)*(n_codefix_attempts+1))
             break
 
-        prefix_former_result(res, former_result)
+        
 
         former_result = res
 
@@ -787,3 +861,7 @@ def summarize_code(code:str):
     prompt = config.prompt_template_summarize_code.format(code=code)
 
     return config.prompt_function_summarize_code(prompt)
+
+
+
+
