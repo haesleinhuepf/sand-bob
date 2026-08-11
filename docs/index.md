@@ -91,6 +91,24 @@ This figure explains how `n_codefix_attempts` and `n_feedback_iterations` work t
 
 ![](flowchart.png)
 
+### Code generation relying on result consistency
+
+When generating multiple code samples, it is obviously possible to compare their execution results. If the results of `n` runs are inconsistent with each other (i.e. not equal), it is obvious that at least `n-1` results are wrong. Hence,
+consistency is a necessary but insufficient condition for functional correctness of code. Nevertheless, consistency is an indicator. Hence, we can generate multiple code samples, execute them and see if multiple code samples lead to the same, dominant result. For picking the code to work on further, we choose a code-sample that lead to this dominant result. You can see what results were consistent / dominant in the graphical user interface. These results are marked with a `*`: 
+
+![](screenshot_tabs.png)
+
+And you can do the dominant result selection programmatically:
+
+```
+results.dominant_result
+```
+
+This figure summarizes what is happening under the hood:
+
+![](flowchart_dominant_result.png)
+
+
 ## Prompting hints
 
 ### Inconsistency visualization

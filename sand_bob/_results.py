@@ -829,7 +829,7 @@ class ExecutionResultList:
     Each tab represents one ExecutionResult, and clicking a tab shows that result.
     """
     
-    def __init__(self, results: List[ExecutionResult], tab_names: Optional[List[str]] = None):
+    def __init__(self, results: List[ExecutionResult]):
         """
         Initialize the ExecutionResultList with a list of ExecutionResult objects.
         
@@ -839,24 +839,23 @@ class ExecutionResultList:
                       tabs will be named "Result 1", "Result 2", etc.
         """
         self.results = results
-        if tab_names is not None and len(tab_names) != len(results):
-            tab_names = None
-
-        self.tab_names = tab_names or [f"Result {i+1}" for i in range(len(results))]
-
-        # Use find_most_common_indices to identify similar results
-        from ._utilities import find_most_common_indices
-        similar_indices = find_most_common_indices([result.final_result if hasattr(result, 'final_result') else None for result in results])
-        
-        # Add a star similar indices even for custom names
-        for i in similar_indices:
-            if i < len(self.tab_names):
-                self.tab_names[i] = f"{self.tab_names[i]}*"
-    
+        self._recompute_tab_names()
         
         # Create the tabbed interface
         self._create_tabbed_interface()
-    
+
+    def _recompute_tab_names(self):
+        self.tab_names = [f"Result {i+1}" for i in range(len(self.results))]
+
+        # Use find_most_common_indices to identify similar results
+        dominant_result = self.dominant_result
+        similar_indices = [i for i, r in enumerate(self.results) if hasattr(r, 'final_result') and r.final_result == dominant_result.final_result]
+
+        # Add a star similar indices even for custom names
+        for i in similar_indices:
+            if i < len(self.tab_names):
+                self.tab_names[i] = self.tab_names[i] + "*"
+
     def _create_tabbed_interface(self):
         """Create an HTML tab interface"""
         tab_titles = ["Overview"]
@@ -1291,7 +1290,7 @@ class ExecutionResultList:
             "</div>"
         )
         
-        return html
+        return history_html
 
     def display(self):
         """Display the tabbed interface."""
@@ -1316,22 +1315,11 @@ class ExecutionResultList:
         """Iterate over results."""
         return iter(self.results)
     
-    def append(self, result: ExecutionResult, tab_name: Optional[str] = None):
+    def append(self, result: ExecutionResult):
         """Add a new result to the list."""
         self.results.append(result)
         
-        # Recalculate similar indices with the new result
-        from ._utilities import find_most_common_indices
-        similar_indices = find_most_common_indices(self.results)
-        
-        if tab_name is None:
-            tab_name = f"Result {len(self.results)}"
-        
-        # Apply bold formatting if this new result is similar
-        if len(self.results) - 1 in similar_indices and len(similar_indices) > 1:
-            tab_name = f"<b>{tab_name}</b>"
-        
-        self.tab_names.append(tab_name)
+        self._recompute_tab_names()
         
         # Recreate the tabbed interface with the new result
         self._create_tabbed_interface()
@@ -1361,3 +1349,50 @@ class ExecutionResultList:
             return max(counts.values()) / len(self.results)
         except ValueError:
             return 0.0
+
+    @property
+    def dominant_final_result(self) -> Any:
+        """Return the most common final_result value among the results."""
+        if not self.results:
+            return None
+
+        counts = {}
+        for result in self.results:
+            value = result.final_result if hasattr(result, 'final_result') else None
+            if value is not None:
+                try:
+                    key = value
+                    hash(key)
+                except TypeError:
+                    key = id(value)
+                counts[key] = counts.get(key, 0) + 1
+
+        if not counts:
+            return None
+
+        dominant_key = max(counts, key=counts.get)
+
+        for result in self.results:
+            value = result.final_result if hasattr(result, 'final_result') else None
+            try:
+                if value == dominant_key:
+                    return value
+            except Exception:
+                if id(value) == dominant_key:
+                    return value
+
+        return None
+
+    @property
+    def dominant_result(self) -> ExecutionResult:
+        """Return the ExecutionResult object corresponding to the dominant final_result."""
+        dominant_value = self.dominant_final_result
+        for result in self.results:
+            value = result.final_result if hasattr(result, 'final_result') else None
+            try:
+                if value == dominant_value:
+                    return result
+            except Exception:
+                if id(value) == id(dominant_value):
+                    return result
+        return None
