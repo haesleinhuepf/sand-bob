@@ -10,7 +10,7 @@ class Config:
         self.prompt_function_determine_dependencies = prompt_scadsai_llm
         self.prompt_function_generate_code = prompt_scadsai_llm
         self.prompt_function_fix_code = prompt_scadsai_llm
-        self.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model="google/gemma-4-31B-it")
+        self.prompt_function_generate_code_feedback = partial(prompt_scadsai_llm, model="google/gemma-4-26B-A4B-it")
         self.prompt_function_summarize_code = prompt_scadsai_llm
         self.prompt_function_notebook_conversion = prompt_scadsai_llm
         self.prompt_function_text_to_text = prompt_scadsai_llm
@@ -323,7 +323,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
     config.prompt_function_text_to_text = partial(prompt_kisski, model=model)
 
-def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-31B-it"):
+def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-26B-A4B-it"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_scadsai_llm
@@ -335,6 +335,20 @@ def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="googl
     config.prompt_function_summarize_code = partial(prompt_scadsai_llm, model=model)
     config.prompt_function_notebook_conversion = partial(prompt_scadsai_llm, model=model)
     config.prompt_function_text_to_text = partial(prompt_scadsai_llm, model=model)
+
+
+def config_blablador(model:str="alias-qwen38-27b", vision_model: str="alias-qwen38-27b"):
+    from ._config import config
+    from functools import partial
+    from ._endpoints import prompt_blablador
+    
+    config.prompt_function_determine_dependencies = partial(prompt_blablador, model=model)
+    config.prompt_function_generate_code = partial(prompt_blablador, model=model)
+    config.prompt_function_fix_code = partial(prompt_blablador, model=model)
+    config.prompt_function_generate_code_feedback = partial(prompt_blablador, model=vision_model)
+    config.prompt_function_summarize_code = partial(prompt_blablador, model=model)
+    config.prompt_function_notebook_conversion = partial(prompt_blablador, model=model)
+    config.prompt_function_text_to_text = partial(prompt_blablador, model=model)
 
 
 def config_kiara(model:str="vllm-deepseek-coder-33b-instruct", vision_model: str="vllm-llama-4-scout-17b-16e-instruct", notebook_conversion_model: str="vllm-llama-3-3-nemotron-super-49b-v1"):

@@ -51,6 +51,31 @@ def prompt_scadsai_llm(message:str, model="openai/gpt-oss-120b"):
     return response.choices[0].message.content
 
 
+
+def prompt_blablador(message:str, model="alias-fast"):
+    """A prompt helper function that sends a message to Helmholtz Blablador
+    and returns only the text response.
+    """
+    import os
+    import openai
+    
+    # convert message in the right format if necessary
+    if isinstance(message, str):
+        message = [{"role": "user", "content": message}]
+    
+    # setup connection to the LLM
+    client = openai.OpenAI(base_url="https://api.blablador.fz-juelich.de/v1/",
+                           api_key=os.environ.get('BLABLADOR_API_KEY')
+    )
+    response = client.chat.completions.create(
+        model=model,
+        messages=message
+    )
+    
+    # extract answer
+    return response.choices[0].message.content
+
+
 def prompt_kiara(message:str, model="openai/gpt-oss-120b"):
     
     """A prompt helper function that sends a message to Kiara LLM server at 
