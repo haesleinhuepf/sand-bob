@@ -849,12 +849,13 @@ class ExecutionResultList:
 
         # Use find_most_common_indices to identify similar results
         dominant_result = self.dominant_result
-        similar_indices = [i for i, r in enumerate(self.results) if hasattr(r, 'final_result') and r.final_result == dominant_result.final_result]
+        if dominant_result is not None:
+            similar_indices = [i for i, r in enumerate(self.results) if hasattr(r, 'final_result') and r.final_result == dominant_result.final_result]
 
-        # Add a star similar indices even for custom names
-        for i in similar_indices:
-            if i < len(self.tab_names):
-                self.tab_names[i] = self.tab_names[i] + "*"
+            # Add a star similar indices even for custom names
+            for i in similar_indices:
+                if i < len(self.tab_names):
+                    self.tab_names[i] = self.tab_names[i] + "*"
 
     def _create_tabbed_interface(self):
         """Create an HTML tab interface"""
