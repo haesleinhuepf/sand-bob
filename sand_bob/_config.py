@@ -323,7 +323,7 @@ def config_kisski(model: str="openai-gpt-oss-120b", vision_model: str="qwen2.5-v
     config.prompt_function_notebook_conversion = partial(prompt_kisski, model=model)
     config.prompt_function_text_to_text = partial(prompt_kisski, model=model)
 
-def config_scadsai_llm(model:str="openai/gpt-oss-120b", vision_model: str="google/gemma-4-26B-A4B-it"):
+def config_scadsai_llm(model:str="google/gemma-4-26B-A4B-it", vision_model: str="google/gemma-4-26B-A4B-it"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_scadsai_llm
