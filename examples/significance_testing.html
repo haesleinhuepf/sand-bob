@@ -224,6 +224,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -240,6 +241,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -454,11 +456,11 @@
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Write Python code that loads the file input_data/data.csv, </span>
-<span class="s2">determines if columns &#39;A&#39; and &#39;B&#39; are significantly different and </span>
-<span class="s2">prints out &#39;yes&#39; in case the p-value &lt; 0.05 and &#39;not sure&#39; otherwise.&quot;&quot;&quot;</span><span class="p">,</span> 
-                   <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pandas&quot;</span><span class="p">,</span> <span class="s2">&quot;scipy&quot;</span><span class="p">],</span> 
-                   <span class="n">input_host_path</span><span class="o">=</span><span class="s2">&quot;./input_data&quot;</span><span class="p">,</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">generate_code</span><span class="p">(</span><span class="s2">"""Write Python code that loads the file input_data/data.csv, </span>
+<span class="s2">determines if columns 'A' and 'B' are significantly different and </span>
+<span class="s2">prints out 'yes' in case the p-value &lt; 0.05 and 'not sure' otherwise."""</span><span class="p">,</span> 
+                   <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">"pandas"</span><span class="p">,</span> <span class="s2">"scipy"</span><span class="p">],</span> 
+                   <span class="n">input_host_path</span><span class="o">=</span><span class="s2">"./input_data"</span><span class="p">,</span>
                    <span class="n">n_parallel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
                    <span class="n">n_iterative</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
                    <span class="n">final_touch</span><span class="o">=</span><span class="kc">True</span>
@@ -472,22 +474,22 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load the CSV file into a DataFrame</span>
-<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;input_data/data.csv&#39;</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'input_data/data.csv'</span><span class="p">)</span>
 
-<span class="c1"># Plot histograms for columns &quot;A&quot; and &quot;B&quot;</span>
+<span class="c1"># Plot histograms for columns "A" and "B"</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Histogram of Column A&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Values&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'A'</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">'blue'</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'Histogram of Column A'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Values'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'Frequency'</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;B&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Histogram of Column B&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Values&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'B'</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">'green'</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'Histogram of Column B'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Values'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'Frequency'</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>

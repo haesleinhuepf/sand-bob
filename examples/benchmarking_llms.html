@@ -220,6 +220,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -236,6 +237,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -435,7 +437,7 @@
 <p>You can use Sand-Bob to benchmark different language models solving coding-tasks. In this notebook we demonstrate how. Before starting, we define the task and the correct result.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Count the number of b&#39;s in blueberry and print the number only.&quot;</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">prompt</span> <span class="o">=</span> <span class="s2">"Count the number of b's in blueberry and print the number only."</span>
 <span class="n">ground_truth</span> <span class="o">=</span> <span class="mi">2</span>
 </pre></div>
 </div>
@@ -445,11 +447,11 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openai</span>
-<span class="n">client</span> <span class="o">=</span> <span class="n">openai</span><span class="o">.</span><span class="n">OpenAI</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:11434/v1&quot;</span><span class="p">,</span>
-                       <span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;none&quot;</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">openai</span><span class="o">.</span><span class="n">OpenAI</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">"http://localhost:11434/v1"</span><span class="p">,</span>
+                       <span class="n">api_key</span><span class="o">=</span><span class="s2">"none"</span>
                       <span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">model</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">list</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">model</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">list</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">]))</span>
 </pre></div>
 </div>
 </div>
@@ -468,7 +470,7 @@ llama3.1:latest
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">llms_to_test</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;gemma3:4b&quot;</span><span class="p">,</span> <span class="s2">&quot;mistral&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen:0.5b&quot;</span><span class="p">]</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">llms_to_test</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"gemma3:4b"</span><span class="p">,</span> <span class="s2">"mistral"</span><span class="p">,</span> <span class="s2">"qwen:0.5b"</span><span class="p">]</span>
 </pre></div>
 </div>
 </div>
@@ -490,7 +492,7 @@ llama3.1:latest
                   <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="c1"># do not beautify the final notebook, we just need the result</span>
     <span class="p">)</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;results:&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">final_result</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">"results:"</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">final_result</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
 
     <span class="n">correct</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
@@ -501,20 +503,20 @@ llama3.1:latest
             <span class="k">pass</span>
 
     <span class="n">model_performance</span><span class="p">[</span><span class="n">model</span><span class="p">]</span> <span class="o">=</span> <span class="n">correct</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Success rate:&quot;</span><span class="p">,</span> <span class="n">model_performance</span><span class="p">[</span><span class="n">model</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Success rate:"</span><span class="p">,</span> <span class="n">model_performance</span><span class="p">[</span><span class="n">model</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>gemma3:4b results: [&#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;, &#39;2.0&#39;]
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>gemma3:4b results: ['2.0', '2.0', '2.0', '2.0', '2.0', '2.0']
 Success rate: 1.0
 </pre></div>
 </div>
-<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>mistral results: [&#39;2&#39;, &#39;None&#39;, &#39;2&#39;, &#39;2&#39;, &#39;Warning: T&#39;, &#39;None&#39;]
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>mistral results: ['2', 'None', '2', '2', 'Warning: T', 'None']
 Success rate: 0.5
 </pre></div>
 </div>
-<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>qwen:0.5b results: [&#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;, &#39;None&#39;]
+<div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output text_html"></div><div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>qwen:0.5b results: ['None', 'None', 'None', 'None', 'None', 'None']
 Success rate: 0.0
 </pre></div>
 </div>
@@ -528,7 +530,7 @@ Success rate: 0.0
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;gemma3:4b&#39;
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>'gemma3:4b'
 </pre></div>
 </div>
 </div>

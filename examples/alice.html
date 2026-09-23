@@ -224,6 +224,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -240,6 +241,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -457,7 +459,7 @@
 <span class="n">config_scadsai_llm</span><span class="p">()</span>
 
 <span class="c1"># give read-acces to a folder</span>
-<span class="n">initialize</span><span class="p">(</span><span class="n">input_host_path</span><span class="o">=</span><span class="s2">&quot;input_data/&quot;</span><span class="p">,</span> <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> 
+<span class="n">initialize</span><span class="p">(</span><span class="n">input_host_path</span><span class="o">=</span><span class="s2">"input_data/"</span><span class="p">,</span> <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> 
 </pre></div>
 </div>
 </div>
@@ -919,7 +921,7 @@ plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span
 <p>You can also request Alice to compute multiple results, be generating <code class="docutils literal notranslate"><span class="pre">n</span></code> independent code samples. This can be done <code class="docutils literal notranslate"><span class="pre">p</span></code> times in parallel and <code class="docutils literal notranslate"><span class="pre">i</span></code> times iteratively; resulting in <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">=</span> <span class="pre">p</span> <span class="pre">*</span> <span class="pre">i</span></code> results.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">initialize</span><span class="p">(</span><span class="n">input_host_path</span><span class="o">=</span><span class="s2">&quot;input_data/&quot;</span><span class="p">,</span> <span class="n">n_parallel</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">n_iterative</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">initialize</span><span class="p">(</span><span class="n">input_host_path</span><span class="o">=</span><span class="s2">"input_data/"</span><span class="p">,</span> <span class="n">n_parallel</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">n_iterative</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -927,7 +929,7 @@ plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%%</span><span class="k">alice</span>
-Visualize a coloured correlation matrix of all columns in &quot;input_data/measurements.csv&quot;
+Visualize a coloured correlation matrix of all columns in "input_data/measurements.csv"
 </pre></div>
 </div>
 </div>

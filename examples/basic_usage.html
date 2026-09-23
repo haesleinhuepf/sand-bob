@@ -64,7 +64,7 @@
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Error handling with Sand-Bob" href="error_handling.html" />
+    <link rel="next" title="Executing code in sanboxed environments" href="code_execution.html" />
     <link rel="prev" title="The %%alice magic command" href="alice.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -224,6 +224,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -240,6 +241,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -451,9 +453,9 @@
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sand_bob</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_code</span><span class="p">,</span> <span class="n">config_llms</span>
 
-<span class="n">config_llms</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemma3:4b&quot;</span><span class="p">,</span>
-            <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:11434/v1&quot;</span><span class="p">,</span>
-            <span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;none&quot;</span>
+<span class="n">config_llms</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gemma3:4b"</span><span class="p">,</span>
+            <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://localhost:11434/v1"</span><span class="p">,</span>
+            <span class="n">api_key</span><span class="o">=</span><span class="s2">"none"</span>
            <span class="p">)</span>
 </pre></div>
 </div>
@@ -462,7 +464,7 @@
 <p>You can then generate (and execute) code like this:</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;print out the numbers between 0 and 9&quot;</span><span class="p">,</span> <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">"print out the numbers between 0 and 9"</span><span class="p">,</span> <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -680,7 +682,7 @@ Numbers between 0 and 9 have been printed.</pre></pre></div></div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>for i in range(10):
     print(i)
-print(&quot;Numbers between 0 and 9 have been printed.&quot;)
+print("Numbers between 0 and 9 have been printed.")
 </pre></div>
 </div>
 </div>
@@ -690,9 +692,9 @@ print(&quot;Numbers between 0 and 9 have been printed.&quot;)
 <p>You can also do this involving files and image output, e.g. like this:</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;Load &#39;input_data/image.tif&#39; and show it&quot;</span><span class="p">,</span> 
-                       <span class="n">input_host_path</span><span class="o">=</span><span class="s2">&quot;input_data&quot;</span><span class="p">,</span> 
-                       <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;scikit-image&quot;</span><span class="p">,</span> <span class="s2">&quot;matplotlib&quot;</span><span class="p">],</span> 
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">"Load 'input_data/image.tif' and show it"</span><span class="p">,</span> 
+                       <span class="n">input_host_path</span><span class="o">=</span><span class="s2">"input_data"</span><span class="p">,</span> 
+                       <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">"scikit-image"</span><span class="p">,</span> <span class="s2">"matplotlib"</span><span class="p">],</span> 
                        <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                        <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                        <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -715,15 +717,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the image
-image = skimage.io.imread(&#39;input_data/image.tif&#39;)
+image = skimage.io.imread('input_data/image.tif')
 
 # Display the image
 plt.imshow(image)
-plt.axis(&#39;off&#39;)  # Hide axes
+plt.axis('off')  # Hide axes
 plt.show()
 
 # Print the file name
-print(&quot;image.tif&quot;)
+print("image.tif")
 </pre></div>
 </div>
 </div>
@@ -951,11 +953,11 @@ plt<span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>.</span
       </div>
     </a>
     <a class="right-next"
-       href="error_handling.html"
+       href="code_execution.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Error handling with Sand-Bob</p>
+        <p class="prev-next-title">Executing code in sanboxed environments</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

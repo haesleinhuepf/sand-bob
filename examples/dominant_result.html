@@ -220,6 +220,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -236,6 +237,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -436,7 +438,7 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sand_bob</span>
-<span class="n">sand_bob</span><span class="o">.</span><span class="n">config_ollama</span><span class="p">(</span><span class="s2">&quot;gemma3:4b&quot;</span><span class="p">)</span>
+<span class="n">sand_bob</span><span class="o">.</span><span class="n">config_ollama</span><span class="p">(</span><span class="s2">"gemma3:4b"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -444,7 +446,7 @@
 <p>To demonstrate this, we create a list of execution results for a simple use-case using a semi-capable LLM. In this case we need a model that produces inconsistent results.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">sand_bob</span><span class="o">.</span><span class="n">generate_code</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;How many b are in &#39;blueperry&#39;? The final result is expected to be a number.&quot;</span><span class="p">,</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">sand_bob</span><span class="o">.</span><span class="n">generate_code</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="s2">"How many b are in 'blueperry'? The final result is expected to be a number."</span><span class="p">,</span>
         <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> 
         <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> 
         <span class="n">final_touch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -2362,7 +2364,7 @@ Overall the code looks good.</pre></li></ul></div><div style='margin:10px 0 14px
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[&#39;Final result: 1&#39;, 1, 1, 1, 1]
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>['Final result: 1', 1, 1, 1, 1]
 </pre></div>
 </div>
 </div>

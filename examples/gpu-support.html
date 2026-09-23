@@ -220,6 +220,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="alice.html">The <code class="docutils literal notranslate"><span class="pre">%%alice</span></code> magic command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Sand-Bob usage: Code generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code_execution.html">Executing code in sanboxed environments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="error_handling.html">Error handling with Sand-Bob</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Advanced</span></p>
@@ -236,6 +237,7 @@
 <li class="toctree-l1"><a class="reference internal" href="image_segmentation.html">Trying many algorithms for image segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="timelapse_analysis.html">Result type specification for time-lapse processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="object-tracking.html">Tracking objects in timelapse videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cybersecurity_experiments.html">Cybersecurity experiments</a></li>
 </ul>
 
     </div>
@@ -444,8 +446,8 @@
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">&quot;use cupy to print out the name of the GPU&quot;</span><span class="p">,</span> 
-              <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cupy&quot;</span><span class="p">],</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">generate_code</span><span class="p">(</span><span class="s2">"use cupy to print out the name of the GPU"</span><span class="p">,</span> 
+              <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">"cupy"</span><span class="p">],</span>
               <span class="n">n_codefix_attempts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
               <span class="n">n_feedback_iterations</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
               <span class="n">gpu_support</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="c1"># this is required to give the docker container access to the GPU</span>
@@ -642,7 +644,7 @@ gpu_name <span style='color: var(--jp-mirror-editor-operator-color, #AA22FF);'>=
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;NVIDIA GeForce RTX 3050 Ti Laptop GPU&#39;
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>'NVIDIA GeForce RTX 3050 Ti Laptop GPU'
 </pre></div>
 </div>
 </div>
@@ -663,13 +665,13 @@ device_id = cp.cuda.Device().id
 # Retrieve device properties (includes the GPU name)
 props = cp.cuda.runtime.getDeviceProperties(device_id)
 
-# The &#39;name&#39; field may be bytes; decode if needed
-gpu_name = props[&quot;name&quot;]
+# The 'name' field may be bytes; decode if needed
+gpu_name = props["name"]
 if isinstance(gpu_name, bytes):
     gpu_name = gpu_name.decode()
 
 # Second‑last print: description
-print(&quot;GPU name (detected by CuPy):&quot;)
+print("GPU name (detected by CuPy):")
 
 # Last print: the result only
 print(gpu_name)
