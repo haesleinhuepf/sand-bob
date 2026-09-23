@@ -434,7 +434,7 @@
   <section id="cybersecurity-experiments">
 <h1>Cybersecurity experiments<a class="headerlink" href="#cybersecurity-experiments" title="Link to this heading">#</a></h1>
 <p>As the AI generated code is executed in sandboxed docker containers, you can prompt for potentially malicious code.
-Hence, the code execution cannot harm your computer. Except</p>
+Hence, the code execution cannot harm your computer. As there are some exceptions, it is recommended to read about <a class="reference external" href="https://docs.docker.com/engine/security/">Docker engine security</a> before diving into sophisticated experiments in this context.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sand_bob</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_code</span><span class="p">,</span> <span class="n">config_llms</span>
