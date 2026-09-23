@@ -6,6 +6,7 @@ parts:
       - file: installation
       - file: examples/alice
       - file: examples/basic_usage
+      - file: examples/code_execution.ipynb
       - file: examples/error_handling
   - caption: "Advanced"
     chapters:
