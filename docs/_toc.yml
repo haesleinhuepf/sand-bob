@@ -22,3 +22,4 @@ parts:
       - file: examples/image_segmentation
       - file: examples/timelapse_analysis
       - file: examples/object-tracking
+      - file: examples/cybersecurity_experiments.ipynb
