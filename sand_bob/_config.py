@@ -337,7 +337,7 @@ def config_scadsai_llm(model:str="google/gemma-4-26B-A4B-it", vision_model: str=
     config.prompt_function_text_to_text = partial(prompt_scadsai_llm, model=model)
 
 
-def config_blablador(model:str="alias-qwen38-27b", vision_model: str="alias-qwen38-27b"):
+def config_blablador(model:str="01 - GPT-OSS-120b - an open model released by OpenAI in August 2025", vision_model: str="01 - GPT-OSS-120b - an open model released by OpenAI in August 2025"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_blablador
@@ -379,7 +379,7 @@ def config_ollama(model: str="qwen2.5-coder:3b"):
     config.prompt_function_text_to_text = partial(prompt_ollama, model=model)
 
 
-def config_strix(model: str="qwen3.5:35b"):
+def config_strix(model: str="flint:latest"):
     from ._config import config
     from functools import partial
     from ._endpoints import prompt_ollama
